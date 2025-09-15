@@ -1,0 +1,77 @@
+services:
+  # PostgreSQL database with PostGIS extension
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: koop-postgres
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+      - ./backups:/backups
+    networks:
+      - koop-network
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Koop application
+  koop-app:
+    build: .
+    container_name: koop-app
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/postgres
+      NODE_ENV: production
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - koop-network
+    volumes:
+      - ./.env:/usr/src/app/.env:ro
+      - ./logs:/usr/src/app/logs
+    restart: always
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/postgis', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: koop-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - koop-network
+    volumes:
+      - ./data/pgadmin:/var/lib/pgadmin
+    restart: unless-stopped
+    profiles:
+      - admin
+
+networks:
+  koop-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
