@@ -279,10 +279,6 @@ function handleRequest (req, res) {
                         <span class="method">GET</span>
                         <span class="endpoint-path">/postgis/rest/services/:host/:id/FeatureServer/:layer/queryRelatedRecords</span>
                     </div>
-                    <div class="endpoint">
-                        <span class="method">GET</span>
-                        <span class="endpoint-path">/postgis/rest/services/:host/:id/MapServer*</span>
-                    </div>
                 </div>
             </div>
             
