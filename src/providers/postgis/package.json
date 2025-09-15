@@ -1,5 +1,5 @@
 {
-  "name": "koop-provider-postgis",
+  "name": "koop-postgis-provider",
   "version": "1.0.0",
   "description": "PostgreSQL/PostGIS provider for KoopJS with full Esri compatibility",
   "main": "index.js",
