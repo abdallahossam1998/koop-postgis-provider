@@ -1,0 +1,973 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "PostGIS Koop Provider API",
+    "description": "A comprehensive Koop application with PostgreSQL/PostGIS provider for serving spatial data as Esri-compatible REST services.\n\nThis API provides full Esri FeatureServer/MapServer compatibility with advanced spatial query capabilities.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "API Support"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Development server"
+    }
+  ],
+  "paths": {
+    "/postgis/rest/info": {
+      "get": {
+        "summary": "Get service information",
+        "description": "Returns general information about the PostGIS provider service",
+        "tags": ["Service Information"],
+        "parameters": [
+          {
+            "name": "f",
+            "in": "query",
+            "description": "Output format",
+            "schema": {
+              "type": "string",
+              "enum": ["json", "pjson"],
+              "default": "json"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Service information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceInfo"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Get service information (POST)",
+        "description": "Returns general information about the PostGIS provider service via POST",
+        "tags": ["Service Information"],
+        "responses": {
+          "200": {
+            "description": "Service information"
+          }
+        }
+      }
+    },
+    "/postgis/rest/generateToken": {
+      "get": {
+        "summary": "Generate authentication token",
+        "description": "Generates an authentication token for API access",
+        "tags": ["Authentication"],
+        "responses": {
+          "200": {
+            "description": "Authentication token generated"
+          }
+        }
+      },
+      "post": {
+        "summary": "Generate authentication token (POST)",
+        "description": "Generates an authentication token for API access via POST",
+        "tags": ["Authentication"],
+        "responses": {
+          "200": {
+            "description": "Authentication token generated"
+          }
+        }
+      }
+    },
+    "/postgis/rest/services/{host}/{id}/FeatureServer": {
+      "get": {
+        "summary": "Get feature service information",
+        "description": "Returns service metadata and layer information for the specified table",
+        "tags": ["Feature Services"],
+        "parameters": [
+          {
+            "name": "host",
+            "in": "path",
+            "required": true,
+            "description": "Database host identifier",
+            "schema": {
+              "type": "string",
+              "example": "postgres"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Table identifier in format schema.table",
+            "schema": {
+              "type": "string",
+              "example": "public.cities"
+            }
+          },
+          {
+            "name": "f",
+            "in": "query",
+            "description": "Output format",
+            "schema": {
+              "type": "string",
+              "enum": ["json", "pjson"],
+              "default": "json"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Service metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceInfo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Get feature service information (POST)",
+        "description": "Returns service metadata and layer information via POST",
+        "tags": ["Feature Services"],
+        "parameters": [
+          {
+            "name": "host",
+            "in": "path",
+            "required": true,
+            "description": "Database host identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Table identifier in format schema.table",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Service metadata"
+          }
+        }
+      }
+    },
+    "/postgis/rest/services/{host}/{id}/FeatureServer/layers": {
+      "get": {
+        "summary": "Get all layers",
+        "description": "Returns information about all layers in the service",
+        "tags": ["Feature Services"],
+        "parameters": [
+          {
+            "name": "host",
+            "in": "path",
+            "required": true,
+            "description": "Database host identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Table identifier in format schema.table",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "f",
+            "in": "query",
+            "description": "Output format",
+            "schema": {
+              "type": "string",
+              "enum": ["json", "pjson"],
+              "default": "json"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Layers information"
+          }
+        }
+      },
+      "post": {
+        "summary": "Get all layers (POST)",
+        "description": "Returns information about all layers via POST",
+        "tags": ["Feature Services"],
+        "parameters": [
+          {
+            "name": "host",
+            "in": "path",
+            "required": true,
+            "description": "Database host identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Table identifier",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Layers information"
+          }
+        }
+      }
+    },
+    "/postgis/rest/services/{host}/{id}/FeatureServer/{layer}": {
+      "get": {
+        "summary": "Get layer information",
+        "description": "Returns layer metadata, fields, and geometry type for the specified layer",
+        "tags": ["Layer Information"],
+        "parameters": [
+          {
+            "name": "host",
+            "in": "path",
+            "required": true,
+            "description": "Database host identifier",
+            "schema": {
+              "type": "string",
+              "example": "postgres"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Table identifier in format schema.table",
+            "schema": {
+              "type": "string",
+              "example": "public.cities"
+            }
+          },
+          {
+            "name": "layer",
+            "in": "path",
+            "required": true,
+            "description": "Layer ID (typically 0)",
+            "schema": {
+              "type": "integer",
+              "example": 0
+            }
+          },
+          {
+            "name": "f",
+            "in": "query",
+            "description": "Output format",
+            "schema": {
+              "type": "string",
+              "enum": ["json", "pjson"],
+              "default": "json"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Layer metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LayerInfo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "404": {
+            "description": "Layer not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Get layer information (POST)",
+        "description": "Returns layer metadata via POST",
+        "tags": ["Layer Information"],
+        "parameters": [
+          {
+            "name": "host",
+            "in": "path",
+            "required": true,
+            "description": "Database host identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Table identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "layer",
+            "in": "path",
+            "required": true,
+            "description": "Layer ID",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Layer metadata"
+          }
+        }
+      }
+    },
+    "/postgis/rest/services/{host}/{id}/FeatureServer/{layer}/query": {
+      "get": {
+        "summary": "Query features",
+        "description": "Query features with spatial and attribute filters",
+        "tags": ["Feature Queries"],
+        "parameters": [
+          {
+            "name": "host",
+            "in": "path",
+            "required": true,
+            "description": "Database host identifier",
+            "schema": {
+              "type": "string",
+              "example": "postgres"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Table identifier in format schema.table",
+            "schema": {
+              "type": "string",
+              "example": "public.cities"
+            }
+          },
+          {
+            "name": "layer",
+            "in": "path",
+            "required": true,
+            "description": "Layer ID (typically 0)",
+            "schema": {
+              "type": "integer",
+              "example": 0
+            }
+          },
+          {
+            "name": "where",
+            "in": "query",
+            "description": "SQL WHERE clause for attribute filtering",
+            "schema": {
+              "type": "string",
+              "example": "population > 1000000"
+            }
+          },
+          {
+            "name": "bbox",
+            "in": "query",
+            "description": "Bounding box filter (xmin,ymin,xmax,ymax)",
+            "schema": {
+              "type": "string",
+              "example": "-180,-90,180,90"
+            }
+          },
+          {
+            "name": "outFields",
+            "in": "query",
+            "description": "Comma-separated list of fields to return (* for all)",
+            "schema": {
+              "type": "string",
+              "example": "name,population,*",
+              "default": "*"
+            }
+          },
+          {
+            "name": "returnGeometry",
+            "in": "query",
+            "description": "Whether to include geometry in response",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          {
+            "name": "f",
+            "in": "query",
+            "description": "Output format",
+            "schema": {
+              "type": "string",
+              "enum": ["json", "geojson", "pjson"],
+              "default": "json"
+            }
+          },
+          {
+            "name": "resultOffset",
+            "in": "query",
+            "description": "Number of records to skip (for pagination)",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "resultRecordCount",
+            "in": "query",
+            "description": "Maximum number of records to return",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2000,
+              "default": 1000
+            }
+          },
+          {
+            "name": "returnCountOnly",
+            "in": "query",
+            "description": "Return only the count of features",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "returnIdsOnly",
+            "in": "query",
+            "description": "Return only feature IDs",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "orderByFields",
+            "in": "query",
+            "description": "Comma-separated list of fields to sort by",
+            "schema": {
+              "type": "string",
+              "example": "name ASC, population DESC"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feature query results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureSet"
+                }
+              },
+              "application/geo+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeoJSON"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid parameters"
+          },
+          "404": {
+            "description": "Layer not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Query features (POST)",
+        "description": "Query features with spatial and attribute filters via POST",
+        "tags": ["Feature Queries"],
+        "parameters": [
+          {
+            "name": "host",
+            "in": "path",
+            "required": true,
+            "description": "Database host identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Table identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "layer",
+            "in": "path",
+            "required": true,
+            "description": "Layer ID",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feature query results"
+          }
+        }
+      }
+    },
+    "/postgis/rest/services/{host}/{id}/FeatureServer/{layer}/generateRenderer": {
+      "get": {
+        "summary": "Generate renderer",
+        "description": "Generates rendering information for the layer",
+        "tags": ["Rendering"],
+        "parameters": [
+          {
+            "name": "host",
+            "in": "path",
+            "required": true,
+            "description": "Database host identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Table identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "layer",
+            "in": "path",
+            "required": true,
+            "description": "Layer ID",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Renderer information"
+          }
+        }
+      },
+      "post": {
+        "summary": "Generate renderer (POST)",
+        "description": "Generates rendering information via POST",
+        "tags": ["Rendering"],
+        "parameters": [
+          {
+            "name": "host",
+            "in": "path",
+            "required": true,
+            "description": "Database host identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Table identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "layer",
+            "in": "path",
+            "required": true,
+            "description": "Layer ID",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Renderer information"
+          }
+        }
+      }
+    },
+    "/postgis/rest/services/{host}/{id}/FeatureServer/{layer}/queryRelatedRecords": {
+      "get": {
+        "summary": "Query related records",
+        "description": "Query records related to the specified features",
+        "tags": ["Relationships"],
+        "parameters": [
+          {
+            "name": "host",
+            "in": "path",
+            "required": true,
+            "description": "Database host identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Table identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "layer",
+            "in": "path",
+            "required": true,
+            "description": "Layer ID",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "objectIds",
+            "in": "query",
+            "description": "Comma-separated list of object IDs",
+            "schema": {
+              "type": "string",
+              "example": "1,2,3"
+            }
+          },
+          {
+            "name": "relationshipId",
+            "in": "query",
+            "description": "ID of the relationship to query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Related records"
+          }
+        }
+      },
+      "post": {
+        "summary": "Query related records (POST)",
+        "description": "Query related records via POST",
+        "tags": ["Relationships"],
+        "parameters": [
+          {
+            "name": "host",
+            "in": "path",
+            "required": true,
+            "description": "Database host identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Table identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "layer",
+            "in": "path",
+            "required": true,
+            "description": "Layer ID",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Related records"
+          }
+        }
+      }
+    },
+    "/postgis/rest/services/{host}/{id}/MapServer": {
+      "get": {
+        "summary": "Get map service information",
+        "description": "Returns map service metadata and capabilities",
+        "tags": ["Map Services"],
+        "parameters": [
+          {
+            "name": "host",
+            "in": "path",
+            "required": true,
+            "description": "Database host identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Table identifier",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Map service information"
+          }
+        }
+      },
+      "post": {
+        "summary": "Get map service information (POST)",
+        "description": "Returns map service metadata via POST",
+        "tags": ["Map Services"],
+        "parameters": [
+          {
+            "name": "host",
+            "in": "path",
+            "required": true,
+            "description": "Database host identifier",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Table identifier",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Map service information"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ServiceInfo": {
+        "type": "object",
+        "properties": {
+          "currentVersion": {
+            "type": "number",
+            "example": 10.81
+          },
+          "serviceDescription": {
+            "type": "string",
+            "example": "PostgreSQL/PostGIS layer"
+          },
+          "maxRecordCount": {
+            "type": "integer",
+            "example": 1000
+          },
+          "layers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LayerReference"
+            }
+          }
+        }
+      },
+      "LayerReference": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 0
+          },
+          "name": {
+            "type": "string",
+            "example": "cities"
+          },
+          "type": {
+            "type": "string",
+            "example": "Feature Layer"
+          }
+        }
+      },
+      "LayerInfo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 0
+          },
+          "name": {
+            "type": "string",
+            "example": "public.cities"
+          },
+          "geometryType": {
+            "type": "string",
+            "enum": ["esriGeometryPoint", "esriGeometryMultipoint", "esriGeometryPolyline", "esriGeometryPolygon"],
+            "example": "esriGeometryPoint"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Field"
+            }
+          }
+        }
+      },
+      "Field": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "name"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["esriFieldTypeOID", "esriFieldTypeString", "esriFieldTypeInteger", "esriFieldTypeDouble", "esriFieldTypeDate"],
+            "example": "esriFieldTypeString"
+          },
+          "alias": {
+            "type": "string",
+            "example": "Name"
+          }
+        }
+      },
+      "FeatureSet": {
+        "type": "object",
+        "properties": {
+          "objectIdFieldName": {
+            "type": "string",
+            "example": "id"
+          },
+          "geometryType": {
+            "type": "string",
+            "example": "esriGeometryPoint"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Feature"
+            }
+          }
+        }
+      },
+      "Feature": {
+        "type": "object",
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "additionalProperties": true,
+            "example": {
+              "id": 1,
+              "name": "New York",
+              "population": 8336817
+            }
+          },
+          "geometry": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "number",
+                "example": -74.006
+              },
+              "y": {
+                "type": "number",
+                "example": 40.7128
+              }
+            }
+          }
+        }
+      },
+      "GeoJSON": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "example": "FeatureCollection"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Service Information",
+      "description": "Service-level metadata and information"
+    },
+    {
+      "name": "Authentication",
+      "description": "Authentication and token management"
+    },
+    {
+      "name": "Feature Services",
+      "description": "Feature service operations and metadata"
+    },
+    {
+      "name": "Layer Information", 
+      "description": "Layer-specific metadata and schema information"
+    },
+    {
+      "name": "Feature Queries",
+      "description": "Query and retrieve spatial features with filtering capabilities"
+    },
+    {
+      "name": "Rendering",
+      "description": "Layer rendering and symbology operations"
+    },
+    {
+      "name": "Relationships",
+      "description": "Query related records and relationship operations"
+    },
+    {
+      "name": "Map Services",
+      "description": "Map service operations and capabilities"
+    }
+  ]
+}

@@ -1,0 +1,514 @@
+openapi: 3.0.0
+info:
+  title: PostGIS Koop Provider API
+  description: |
+    A comprehensive Koop application with PostgreSQL/PostGIS provider for serving spatial data as Esri-compatible REST services.
+    
+    This API provides full Esri FeatureServer/MapServer compatibility with advanced spatial query capabilities.
+  version: 1.0.0
+  contact:
+    name: API Support
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Development server
+
+paths:
+  /postgis/rest/services/{host}/{schema}.{table}/FeatureServer:
+    get:
+      summary: Get service information
+      description: Returns service metadata and layer information for the specified table
+      tags:
+        - Service Information
+      parameters:
+        - name: host
+          in: path
+          required: true
+          description: Database host identifier
+          schema:
+            type: string
+            example: localhost
+        - name: schema
+          in: path
+          required: true
+          description: Database schema name
+          schema:
+            type: string
+            example: public
+        - name: table
+          in: path
+          required: true
+          description: Table name
+          schema:
+            type: string
+            example: cities
+        - name: f
+          in: query
+          description: Output format
+          schema:
+            type: string
+            enum: [json, pjson]
+            default: json
+      responses:
+        '200':
+          description: Service metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceInfo'
+        '400':
+          description: Bad request
+        '500':
+          description: Internal server error
+
+  /postgis/rest/services/{host}/{schema}.{table}/FeatureServer/{layer}:
+    get:
+      summary: Get layer information
+      description: Returns layer metadata, fields, and geometry type for the specified layer
+      tags:
+        - Layer Information
+      parameters:
+        - name: host
+          in: path
+          required: true
+          description: Database host identifier
+          schema:
+            type: string
+            example: localhost
+        - name: schema
+          in: path
+          required: true
+          description: Database schema name
+          schema:
+            type: string
+            example: public
+        - name: table
+          in: path
+          required: true
+          description: Table name
+          schema:
+            type: string
+            example: cities
+        - name: layer
+          in: path
+          required: true
+          description: Layer ID (typically 0)
+          schema:
+            type: integer
+            example: 0
+        - name: f
+          in: query
+          description: Output format
+          schema:
+            type: string
+            enum: [json, pjson]
+            default: json
+      responses:
+        '200':
+          description: Layer metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LayerInfo'
+        '400':
+          description: Bad request
+        '404':
+          description: Layer not found
+        '500':
+          description: Internal server error
+
+  /postgis/rest/services/{host}/{schema}.{table}/FeatureServer/{layer}/query:
+    get:
+      summary: Query features
+      description: Query features with spatial and attribute filters
+      tags:
+        - Feature Queries
+      parameters:
+        - name: host
+          in: path
+          required: true
+          description: Database host identifier
+          schema:
+            type: string
+            example: localhost
+        - name: schema
+          in: path
+          required: true
+          description: Database schema name
+          schema:
+            type: string
+            example: public
+        - name: table
+          in: path
+          required: true
+          description: Table name
+          schema:
+            type: string
+            example: cities
+        - name: layer
+          in: path
+          required: true
+          description: Layer ID (typically 0)
+          schema:
+            type: integer
+            example: 0
+        - name: where
+          in: query
+          description: SQL WHERE clause for attribute filtering
+          schema:
+            type: string
+            example: "population > 1000000"
+        - name: geometry
+          in: query
+          description: Geometry filter in WKT or Esri JSON format
+          schema:
+            type: string
+            example: "POLYGON((-74.1 40.6, -73.9 40.6, -73.9 40.8, -74.1 40.8, -74.1 40.6))"
+        - name: geometryType
+          in: query
+          description: Type of geometry filter
+          schema:
+            type: string
+            enum: 
+              - esriGeometryPoint
+              - esriGeometryMultipoint
+              - esriGeometryPolyline
+              - esriGeometryPolygon
+              - esriGeometryEnvelope
+        - name: spatialRel
+          in: query
+          description: Spatial relationship for geometry filter
+          schema:
+            type: string
+            enum:
+              - esriSpatialRelIntersects
+              - esriSpatialRelContains
+              - esriSpatialRelWithin
+              - esriSpatialRelTouches
+              - esriSpatialRelOverlaps
+              - esriSpatialRelCrosses
+            default: esriSpatialRelIntersects
+        - name: bbox
+          in: query
+          description: Bounding box filter (xmin,ymin,xmax,ymax)
+          schema:
+            type: string
+            example: "-180,-90,180,90"
+        - name: outFields
+          in: query
+          description: Comma-separated list of fields to return (* for all)
+          schema:
+            type: string
+            example: "name,population,*"
+            default: "*"
+        - name: returnGeometry
+          in: query
+          description: Whether to include geometry in response
+          schema:
+            type: boolean
+            default: true
+        - name: f
+          in: query
+          description: Output format
+          schema:
+            type: string
+            enum: [json, geojson, pjson]
+            default: json
+        - name: resultOffset
+          in: query
+          description: Number of records to skip (for pagination)
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: resultRecordCount
+          in: query
+          description: Maximum number of records to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2000
+            default: 1000
+        - name: orderByFields
+          in: query
+          description: Comma-separated list of fields to sort by (field ASC/DESC)
+          schema:
+            type: string
+            example: "name ASC, population DESC"
+        - name: returnCountOnly
+          in: query
+          description: Return only the count of features
+          schema:
+            type: boolean
+            default: false
+        - name: returnIdsOnly
+          in: query
+          description: Return only feature IDs
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Feature query results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureSet'
+            application/geo+json:
+              schema:
+                $ref: '#/components/schemas/GeoJSON'
+        '400':
+          description: Bad request - invalid parameters
+        '404':
+          description: Layer not found
+        '500':
+          description: Internal server error
+
+components:
+  schemas:
+    ServiceInfo:
+      type: object
+      properties:
+        currentVersion:
+          type: number
+          example: 10.81
+        serviceDescription:
+          type: string
+          example: "PostgreSQL/PostGIS layer"
+        hasVersionedData:
+          type: boolean
+          example: false
+        supportsDisconnectedEditing:
+          type: boolean
+          example: false
+        hasStaticData:
+          type: boolean
+          example: true
+        maxRecordCount:
+          type: integer
+          example: 1000
+        supportedQueryFormats:
+          type: string
+          example: "JSON, geoJSON"
+        capabilities:
+          type: string
+          example: "Query"
+        layers:
+          type: array
+          items:
+            $ref: '#/components/schemas/LayerReference'
+
+    LayerReference:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 0
+        name:
+          type: string
+          example: "cities"
+        type:
+          type: string
+          example: "Feature Layer"
+
+    LayerInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 0
+        name:
+          type: string
+          example: "public.cities"
+        description:
+          type: string
+          example: "PostgreSQL/PostGIS layer: public.cities"
+        type:
+          type: string
+          example: "Feature Layer"
+        geometryType:
+          type: string
+          enum: [esriGeometryPoint, esriGeometryMultipoint, esriGeometryPolyline, esriGeometryPolygon]
+          example: "esriGeometryPoint"
+        extent:
+          $ref: '#/components/schemas/Extent'
+        displayField:
+          type: string
+          example: "name"
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/Field'
+        relationships:
+          type: array
+          items:
+            $ref: '#/components/schemas/Relationship'
+        capabilities:
+          type: string
+          example: "Query"
+
+    Field:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "name"
+        type:
+          type: string
+          enum: [esriFieldTypeOID, esriFieldTypeString, esriFieldTypeInteger, esriFieldTypeDouble, esriFieldTypeDate, esriFieldTypeGeometry]
+          example: "esriFieldTypeString"
+        alias:
+          type: string
+          example: "Name"
+        length:
+          type: integer
+          example: 255
+        nullable:
+          type: boolean
+          example: true
+
+    Extent:
+      type: object
+      properties:
+        xmin:
+          type: number
+          example: -180
+        ymin:
+          type: number
+          example: -90
+        xmax:
+          type: number
+          example: 180
+        ymax:
+          type: number
+          example: 90
+        spatialReference:
+          $ref: '#/components/schemas/SpatialReference'
+
+    SpatialReference:
+      type: object
+      properties:
+        wkid:
+          type: integer
+          example: 4326
+        latestWkid:
+          type: integer
+          example: 4326
+
+    FeatureSet:
+      type: object
+      properties:
+        objectIdFieldName:
+          type: string
+          example: "id"
+        globalIdFieldName:
+          type: string
+          example: ""
+        geometryType:
+          type: string
+          example: "esriGeometryPoint"
+        spatialReference:
+          $ref: '#/components/schemas/SpatialReference'
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/Field'
+        features:
+          type: array
+          items:
+            $ref: '#/components/schemas/Feature'
+        exceededTransferLimit:
+          type: boolean
+          example: false
+
+    Feature:
+      type: object
+      properties:
+        attributes:
+          type: object
+          additionalProperties: true
+          example:
+            id: 1
+            name: "New York"
+            population: 8336817
+        geometry:
+          $ref: '#/components/schemas/Geometry'
+
+    Geometry:
+      type: object
+      properties:
+        x:
+          type: number
+          example: -74.006
+        y:
+          type: number
+          example: 40.7128
+        spatialReference:
+          $ref: '#/components/schemas/SpatialReference'
+
+    Relationship:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        relatedTableId:
+          type: integer
+        cardinality:
+          type: string
+          enum: [esriRelCardinalityOneToOne, esriRelCardinalityOneToMany, esriRelCardinalityManyToMany]
+        role:
+          type: string
+          enum: [esriRelRoleOrigin, esriRelRoleDestination]
+        keyField:
+          type: string
+        composite:
+          type: boolean
+
+    GeoJSON:
+      type: object
+      properties:
+        type:
+          type: string
+          example: "FeatureCollection"
+        features:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeoJSONFeature'
+
+    GeoJSONFeature:
+      type: object
+      properties:
+        type:
+          type: string
+          example: "Feature"
+        properties:
+          type: object
+          additionalProperties: true
+        geometry:
+          $ref: '#/components/schemas/GeoJSONGeometry'
+
+    GeoJSONGeometry:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon]
+        coordinates:
+          type: array
+          items:
+            oneOf:
+              - type: number
+              - type: array
+
+tags:
+  - name: Service Information
+    description: Service-level metadata and information
+  - name: Layer Information
+    description: Layer-specific metadata and schema information
+  - name: Feature Queries
+    description: Query and retrieve spatial features with filtering capabilities
