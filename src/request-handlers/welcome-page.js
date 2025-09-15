@@ -209,10 +209,6 @@ function handleRequest (req, res) {
             <div class="header-content">
                 <h1>PostGIS Koop Provider</h1>
                 <p>Transform PostgreSQL spatial data into Esri-compatible REST services</p>
-                <div class="status">
-                    <div class="status-dot"></div>
-                    Service Online
-                </div>
             </div>
         </div>
     </div>
@@ -291,22 +287,150 @@ function handleRequest (req, res) {
             </div>
             
             <div class="section">
-                <h2>Quick Examples</h2>
+                <h2>FeatureServer Test URLs</h2>
                 <div class="grid">
                     <div class="card">
-                        <h3>Service Information</h3>
-                        <p>Get metadata about available services</p>
-                        <a href="/postgis/rest/services/postgres/public.cities/FeatureServer" class="btn btn-secondary">Try It</a>
+                        <div class="card-header">
+                            <div class="card-icon">🏢</div>
+                            <h3>Service Metadata</h3>
+                        </div>
+                        <p>Get service information, layers, and capabilities</p>
+                        <div style="margin-bottom: 1rem;">
+                            <a href="/postgis/rest/services/postgres/public.cities/FeatureServer?f=json" class="btn" target="_blank">Service Info</a>
+                            <a href="/postgis/rest/services/postgres/public.cities/FeatureServer/layers?f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">All Layers</a>
+                        </div>
                     </div>
+                    
                     <div class="card">
-                        <h3>Layer Details</h3>
-                        <p>View layer schema and geometry type</p>
-                        <a href="/postgis/rest/services/postgres/public.cities/FeatureServer/0" class="btn btn-secondary">Try It</a>
+                        <div class="card-header">
+                            <div class="card-icon">📊</div>
+                            <h3>Layer Information</h3>
+                        </div>
+                        <p>Layer schema, geometry type, and field definitions</p>
+                        <div style="margin-bottom: 1rem;">
+                            <a href="/postgis/rest/services/postgres/public.cities/FeatureServer/0?f=json" class="btn" target="_blank">Layer Details</a>
+                            <a href="/postgis/rest/services/postgres/public.cities/FeatureServer/0/info?f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Layer Info</a>
+                        </div>
                     </div>
+                    
                     <div class="card">
-                        <h3>Spatial Query</h3>
-                        <p>Query features with spatial filters</p>
-                        <a href="/postgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=population>5000000&f=json" class="btn btn-secondary">Try It</a>
+                        <div class="card-header">
+                            <div class="card-icon">🔍</div>
+                            <h3>Basic Queries</h3>
+                        </div>
+                        <p>Simple feature queries with different parameters</p>
+                        <div style="margin-bottom: 1rem;">
+                            <a href="/postgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=1=1&f=json" class="btn" target="_blank">All Features</a>
+                            <a href="/postgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=1=1&f=geojson" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">GeoJSON Format</a>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">🎯</div>
+                            <h3>WHERE Clause Queries</h3>
+                        </div>
+                        <p>Filter features using SQL WHERE conditions</p>
+                        <div style="margin-bottom: 1rem;">
+                            <a href="/postgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=population>1000000&f=json" class="btn" target="_blank">Large Cities</a>
+                            <a href="/postgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=city_name LIKE 'New%'&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Name Filter</a>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">📍</div>
+                            <h3>Spatial Queries</h3>
+                        </div>
+                        <p>Query features using bounding box filters</p>
+                        <div style="margin-bottom: 1rem;">
+                            <a href="/postgis/rest/services/postgres/public.cities/FeatureServer/0/query?bbox=-180,-90,180,90&f=json" class="btn" target="_blank">World Bbox</a>
+                            <a href="/postgis/rest/services/postgres/public.cities/FeatureServer/0/query?bbox=-75,40,-73,41&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">NYC Area</a>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">📄</div>
+                            <h3>Pagination & Sorting</h3>
+                        </div>
+                        <p>Control result sets with pagination and ordering</p>
+                        <div style="margin-bottom: 1rem;">
+                            <a href="/postgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=1=1&resultRecordCount=10&f=json" class="btn" target="_blank">First 10</a>
+                            <a href="/postgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=1=1&orderByFields=population DESC&resultRecordCount=5&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Top 5 by Pop</a>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">🎨</div>
+                            <h3>Rendering Info</h3>
+                        </div>
+                        <p>Generate rendering information for the layer</p>
+                        <div style="margin-bottom: 1rem;">
+                            <a href="/postgis/rest/services/postgres/public.cities/FeatureServer/0/generateRenderer?f=json" class="btn" target="_blank">Generate Renderer</a>
+                            <a href="/postgis/rest/services/postgres/public.cities/FeatureServer/0?f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Layer Schema</a>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">🔗</div>
+                            <h3>Field Operations</h3>
+                        </div>
+                        <p>Work with specific fields and return formats</p>
+                        <div style="margin-bottom: 1rem;">
+                            <a href="/postgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=1=1&outFields=city_name,population&f=json" class="btn" target="_blank">Select Fields</a>
+                            <a href="/postgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=1=1&outFields=city_id&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">IDs Only</a>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">🌍</div>
+                            <h3>MapServer Compatibility</h3>
+                        </div>
+                        <p>Test MapServer endpoints for broader compatibility</p>
+                        <div style="margin-bottom: 1rem;">
+                            <a href="/postgis/rest/services/postgres/public.cities/MapServer?f=json" class="btn" target="_blank">MapServer Info</a>
+                            <a href="/postgis/rest/services/postgres/public.cities/MapServer/0?f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Layer Info</a>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">🔐</div>
+                            <h3>Authentication & Tokens</h3>
+                        </div>
+                        <p>Test authentication and token generation endpoints</p>
+                        <div style="margin-bottom: 1rem;">
+                            <a href="/postgis/rest/info?f=json" class="btn" target="_blank">Service Info</a>
+                            <a href="/postgis/rest/generateToken?f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Generate Token</a>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">🔄</div>
+                            <h3>Output Formats</h3>
+                        </div>
+                        <p>Test different output formats supported by the service</p>
+                        <div style="margin-bottom: 1rem;">
+                            <a href="/postgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=1=1&resultRecordCount=5&f=json" class="btn" target="_blank">JSON</a>
+                            <a href="/postgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=1=1&resultRecordCount=5&f=geojson" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">GeoJSON</a>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">⚡</div>
+                            <h3>Advanced Queries</h3>
+                        </div>
+                        <p>Complex queries with multiple parameters and conditions</p>
+                        <div style="margin-bottom: 1rem;">
+                            <a href="/postgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=population BETWEEN 500000 AND 2000000&orderByFields=city_name ASC&outFields=city_name,population,country&resultRecordCount=10&f=json" class="btn" target="_blank">Complex Query</a>
+                            <a href="/postgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=country='USA'&orderByFields=population DESC&resultRecordCount=5&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">USA Cities</a>
+                        </div>
                     </div>
                 </div>
             </div>
