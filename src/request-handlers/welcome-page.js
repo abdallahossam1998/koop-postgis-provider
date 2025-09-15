@@ -385,17 +385,6 @@ function handleRequest (req, res) {
                         </div>
                     </div>
                     
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="card-icon">🌍</div>
-                            <h3>MapServer Compatibility</h3>
-                        </div>
-                        <p>Test MapServer endpoints for broader compatibility</p>
-                        <div style="margin-bottom: 1rem;">
-                            <a href="/postgis/rest/services/postgres/public.cities/MapServer?f=json" class="btn" target="_blank">MapServer Info</a>
-                            <a href="/postgis/rest/services/postgres/public.cities/MapServer/0?f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Layer Info</a>
-                        </div>
-                    </div>
                     
                     <div class="card">
                         <div class="card-header">

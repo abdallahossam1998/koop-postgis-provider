@@ -725,68 +725,6 @@
           }
         }
       }
-    },
-    "/postgis/rest/services/{host}/{id}/MapServer": {
-      "get": {
-        "summary": "Get map service information",
-        "description": "Returns map service metadata and capabilities",
-        "tags": ["Map Services"],
-        "parameters": [
-          {
-            "name": "host",
-            "in": "path",
-            "required": true,
-            "description": "Database host identifier",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "description": "Table identifier",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Map service information"
-          }
-        }
-      },
-      "post": {
-        "summary": "Get map service information (POST)",
-        "description": "Returns map service metadata via POST",
-        "tags": ["Map Services"],
-        "parameters": [
-          {
-            "name": "host",
-            "in": "path",
-            "required": true,
-            "description": "Database host identifier",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "description": "Table identifier",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Map service information"
-          }
-        }
-      }
     }
   },
   "components": {
@@ -964,10 +902,6 @@
     {
       "name": "Relationships",
       "description": "Query related records and relationship operations"
-    },
-    {
-      "name": "Map Services",
-      "description": "Map service operations and capabilities"
     }
   ]
 }
