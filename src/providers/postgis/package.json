@@ -1,0 +1,16 @@
+{
+  "name": "koop-provider-postgis",
+  "version": "1.0.0",
+  "description": "PostgreSQL/PostGIS provider for KoopJS with full Esri compatibility",
+  "main": "index.js",
+  "keywords": [
+    "koop",
+    "provider",
+    "postgresql",
+    "postgis",
+    "esri",
+    "gis"
+  ],
+  "author": "Abdallah Hossam",
+  "license": "MIT"
+}
