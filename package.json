@@ -11,9 +11,12 @@
     "@koopjs/koop-core": "^10.1.0",
     "config": "^3.3.9",
     "dotenv": "^17.2.2",
+    "js-yaml": "^4.1.0",
     "lodash": "^4.17.21",
     "pg": "^8.11.3",
     "pg-pool": "^3.6.1",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "wellknown": "^0.5.0"
   },
   "devDependencies": {
