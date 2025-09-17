@@ -187,7 +187,7 @@ class Controller {
         supportedQueryFormats: 'JSON, geoJSON',
         supportedExportFormats: 'sqlite,filegdb,shapefile,csv,kml,kmz',
         hasVersionedData: false,
-        maxRecordCount: 1000,
+        maxRecordCount: parseInt(process.env.KOOP_MAX_RECORD_COUNT) || 100000,
         maxImageHeight: 4096,
         maxImageWidth: 4096,
         supportedExtensions: ''
@@ -416,7 +416,7 @@ class Controller {
       canScaleSymbols: false,
       hasLabels: false,
       capabilities: 'Map,Query,Data',
-      maxRecordCount: metadata.maxRecordCount || 1000,
+      maxRecordCount: metadata.maxRecordCount || parseInt(process.env.KOOP_MAX_RECORD_COUNT) || 100000,
       supportsStatistics: true,
       supportsAdvancedQueries: true,
       supportedQueryFormats: 'JSON, geoJSON',

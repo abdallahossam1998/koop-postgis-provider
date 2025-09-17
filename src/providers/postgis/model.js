@@ -305,15 +305,20 @@ class Model {
    */
   applyPagination(query, queryParams, params, paramIndex) {
     const resultOffset = parseInt(queryParams.resultOffset) || 0
-    const resultRecordCount = parseInt(queryParams.resultRecordCount) || 1000
+    // Increase default limit to 10000, or use environment variable if set
+    const defaultLimit = parseInt(process.env.KOOP_MAX_RECORD_COUNT) || 100000
+    const resultRecordCount = parseInt(queryParams.resultRecordCount) || defaultLimit
 
     if (resultOffset > 0) {
       params.push(resultOffset)
       query += ` OFFSET $${paramIndex++}`
     }
 
-    params.push(resultRecordCount)
-    query += ` LIMIT $${paramIndex}`
+    // Only apply LIMIT if resultRecordCount > 0 (0 means unlimited)
+    if (resultRecordCount > 0) {
+      params.push(resultRecordCount)
+      query += ` LIMIT $${paramIndex}`
+    }
 
     return { query, paramIndex }
   }
@@ -698,6 +703,9 @@ class Model {
       // Get relationships for this table
       const relationships = await this.getTableRelationships(schema, table)
 
+      // Get max record count from environment or use default
+      const maxRecordCount = parseInt(process.env.KOOP_MAX_RECORD_COUNT) || 10000
+      
       return {
         name: `${schema}.${table}`,
         description: `PostgreSQL/PostGIS layer: ${schema}.${table}`,
@@ -705,7 +713,7 @@ class Model {
         displayField: fields.length > 0 ? fields[0].name : null,
         geometryType,
         idField: this.findIdField(fields),
-        maxRecordCount: 1000,
+        maxRecordCount: maxRecordCount,
         fields,
         relationships
       }
