@@ -370,7 +370,19 @@ class Controller {
   generateLayerInfo(metadata, params) {
     const isNonSpatial = !metadata.geometryType
     
-    return {
+    // Check if there are any date fields for temporal configuration
+    const dateFields = metadata.fields ? metadata.fields.filter(field => field.type === 'Date') : []
+    const hasDateFields = dateFields.length > 0
+    
+    // Determine if this should be a temporal layer
+    // Check environment variable for temporal configuration
+    const enableTemporal = process.env.KOOP_ENABLE_TEMPORAL === 'true'
+    const temporalField = process.env.KOOP_TEMPORAL_FIELD || metadata.displayField
+    
+    const isTemporalLayer = enableTemporal && hasDateFields && temporalField && 
+      dateFields.some(field => field.name === temporalField)
+    
+    const layerInfo = {
       id: parseInt(params.layer) || 0,
       name: metadata.name || params.id,
       type: isNonSpatial ? 'Table' : 'Feature Layer',
@@ -441,6 +453,38 @@ class Controller {
       supportsDatumTransformation: true,
       supportsCoordinatesQuantization: true
     }
+    
+    // Add temporal configuration if this is a temporal layer
+    if (isTemporalLayer) {
+      layerInfo.timeInfo = {
+        startTimeField: temporalField,
+        endTimeField: null,
+        trackIdField: null,
+        timeExtent: null,
+        timeReference: {
+          timeZone: 'UTC',
+          respectsDaylightSaving: false
+        },
+        hasLiveData: false,
+        defaultTimeInterval: 1,
+        defaultTimeIntervalUnits: 'esriTimeUnitsHours'
+      }
+      
+      // Add temporal capabilities
+      layerInfo.supportsTime = true
+      layerInfo.timeInfo.exportOptions = {
+        useTime: true,
+        timeDataCumulative: false,
+        timeOffset: null,
+        timeOffsetUnits: null
+      }
+    } else {
+      // Explicitly set timeInfo to null for non-temporal layers
+      layerInfo.timeInfo = null
+      layerInfo.supportsTime = false
+    }
+    
+    return layerInfo
   }
 
   /**
