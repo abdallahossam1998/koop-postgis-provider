@@ -1,4 +1,41 @@
 module.exports = [
+  // Routes with optional host parameter (host defaults to 'default')
+  {
+    path: '/:id/FeatureServer/:layer/:method',
+    methods: ['get', 'post'],
+    handler: 'featureServer'
+  },
+  {
+    path: '/:id/FeatureServer/:layer',
+    methods: ['get'],
+    handler: 'featureServer'
+  },
+  {
+    path: '/:id/FeatureServer',
+    methods: ['get'],
+    handler: 'featureServer'
+  },
+  {
+    path: '/:id/MapServer/:layer/:method',
+    methods: ['get', 'post'],
+    handler: 'mapServer'
+  },
+  {
+    path: '/:id/MapServer/:layer',
+    methods: ['get'],
+    handler: 'mapServer'
+  },
+  {
+    path: '/:id/MapServer',
+    methods: ['get'],
+    handler: 'mapServer'
+  },
+  {
+    path: '/:id',
+    methods: ['get'],
+    handler: 'info'
+  },
+  // Routes with explicit host parameter (for multi-database support)
   {
     path: '/:host/:id/FeatureServer/:layer/:method',
     methods: ['get', 'post'],
