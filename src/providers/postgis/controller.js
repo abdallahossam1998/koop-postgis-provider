@@ -20,11 +20,15 @@ class Controller {
           return this.handleLayerInfo(req, res)
         default:
           if (!method && layer) {
+            // URL pattern: /id/FeatureServer/0 - show layer info
             return this.handleLayerInfo(req, res)
           } else if (!method && !layer) {
+            // URL pattern: /id/FeatureServer - show service info
             return this.handleServiceInfo(req, res, 'FeatureServer')
+          } else {
+            // Unknown method, return 404
+            return res.status(404).json({ error: 'Method not found', method: method })
           }
-          return this.handleQuery(req, res)
       }
     } catch (error) {
       this.handleError(res, error)
@@ -46,11 +50,15 @@ class Controller {
           return this.handleLayerInfo(req, res)
         default:
           if (!method && layer) {
+            // URL pattern: /id/MapServer/0 - show layer info
             return this.handleLayerInfo(req, res)
           } else if (!method && !layer) {
+            // URL pattern: /id/MapServer - show service info
             return this.handleServiceInfo(req, res, 'MapServer')
+          } else {
+            // Unknown method, return 404
+            return res.status(404).json({ error: 'Method not found', method: method })
           }
-          return this.handleQuery(req, res)
       }
     } catch (error) {
       this.handleError(res, error)
@@ -121,7 +129,8 @@ class Controller {
    */
   async handleServiceInfo(req, res, serviceType) {
     try {
-      const { host, id } = req.params
+      const { id } = req.params
+      const host = 'default' // Always use default host
       
       const serviceInfo = {
         currentVersion: 10.91,
@@ -204,7 +213,8 @@ class Controller {
    */
   async info(req, res) {
     try {
-      const { host, id } = req.params
+      const { id } = req.params
+      const host = 'default' // Always use default host
       
       const info = {
         name: id,

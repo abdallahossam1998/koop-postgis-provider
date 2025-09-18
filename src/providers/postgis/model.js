@@ -41,25 +41,10 @@ class Model {
   async getData(request, callback) {
     try {
       const { params, query } = request
-      let { host, id, layer } = params
+      const { id, layer } = params
       
-      // Handle case where host is not provided (abstracted URLs)
-      if (!host && id) {
-        // If only one parameter, it might be the id with host abstracted
-        // Check if id contains a dot (schema.table format)
-        if (id && id.includes('.')) {
-          host = 'default' // Use default host
-        } else {
-          // If id doesn't contain dot, it might be host/id pattern
-          // This handles the case where URL has 2 params but we expected 1
-          host = id
-          id = layer
-          layer = undefined
-        }
-      }
-      
-      // Default host if still not set
-      host = host || 'default'
+      // Always use default host since we removed host parameter from URLs
+      const host = 'default'
       
       // Get database configuration
       const config = this.getDatabaseConfig(host)
