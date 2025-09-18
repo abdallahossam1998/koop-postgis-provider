@@ -710,7 +710,7 @@ class Model {
         name: `${schema}.${table}`,
         description: `PostgreSQL/PostGIS layer: ${schema}.${table}`,
         extent,
-        displayField: fields.length > 0 ? fields[0].name : null,
+        displayField: this.findDisplayField(fields),
         geometryType,
         idField: this.findIdField(fields),
         maxRecordCount: maxRecordCount,
@@ -776,6 +776,35 @@ class Model {
       return [[xmin, ymin], [xmax, ymax]]
     }
     return [[-180, -90], [180, 90]]
+  }
+
+  /**
+   * Find suitable display field for Esri compatibility
+   */
+  findDisplayField(fields) {
+    if (!fields || fields.length === 0) return null
+    
+    // Look for common display field names (non-date fields preferred)
+    const displayCandidates = ['name', 'title', 'label', 'description', 'id']
+    
+    for (const candidate of displayCandidates) {
+      const field = fields.find(f => 
+        f.name.toLowerCase().includes(candidate) && 
+        f.type !== 'Date' // Avoid date fields for display unless specifically needed
+      )
+      if (field) return field.name
+    }
+    
+    // Look for any string field
+    const stringField = fields.find(f => f.type === 'String')
+    if (stringField) return stringField.name
+    
+    // Look for any non-date field
+    const nonDateField = fields.find(f => f.type !== 'Date')
+    if (nonDateField) return nonDateField.name
+    
+    // If only date fields exist, return the first one
+    return fields[0].name
   }
 
   /**
