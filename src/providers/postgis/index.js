@@ -2,7 +2,7 @@ const Model = require('./model')
 const Controller = require('./controller')
 
 const provider = {
-  name: 'postgis',
+  name: 'arcgis',
   hosts: true,
   disableIdParam: false,
   Model,
