@@ -1,8 +1,8 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "PostGIS Koop Provider API",
-    "description": "A comprehensive Koop application with PostgreSQL/PostGIS provider for serving spatial data as Esri-compatible REST services.\n\nThis API provides full Esri FeatureServer/MapServer compatibility with advanced spatial query capabilities.",
+    "title": "ArcGIS Server Compatible API",
+    "description": "A comprehensive ArcGIS Server compatible API with PostgreSQL/PostGIS provider for serving spatial data as ArcGIS-compatible REST services.\n\nThis API provides full ArcGIS FeatureServer/MapServer compatibility with advanced spatial query capabilities and vector tile support.",
     "version": "1.0.0",
     "contact": {
       "name": "API Support"
@@ -19,10 +19,10 @@
     }
   ],
   "paths": {
-    "/postgis/rest/info": {
+    "/arcgis/rest/info": {
       "get": {
         "summary": "Get service information",
-        "description": "Returns general information about the PostGIS provider service",
+        "description": "Returns general information about the ArcGIS compatible service",
         "tags": ["Service Information"],
         "parameters": [
           {
@@ -51,7 +51,7 @@
       },
       "post": {
         "summary": "Get service information (POST)",
-        "description": "Returns general information about the PostGIS provider service via POST",
+        "description": "Returns general information about the ArcGIS compatible service via POST",
         "tags": ["Service Information"],
         "responses": {
           "200": {
@@ -60,7 +60,7 @@
         }
       }
     },
-    "/postgis/rest/generateToken": {
+    "/arcgis/rest/generateToken": {
       "get": {
         "summary": "Generate authentication token",
         "description": "Generates an authentication token for API access",
@@ -82,7 +82,7 @@
         }
       }
     },
-    "/postgis/rest/services/{host}/{id}/FeatureServer": {
+    "/arcgis/rest/services/{host}/{id}/FeatureServer": {
       "get": {
         "summary": "Get feature service information",
         "description": "Returns service metadata and layer information for the specified table",
@@ -169,7 +169,7 @@
         }
       }
     },
-    "/postgis/rest/services/{host}/{id}/FeatureServer/layers": {
+    "/arcgis/rest/services/{host}/{id}/FeatureServer/layers": {
       "get": {
         "summary": "Get all layers",
         "description": "Returns information about all layers in the service",
@@ -241,7 +241,7 @@
         }
       }
     },
-    "/postgis/rest/services/{host}/{id}/FeatureServer/{layer}": {
+    "/arcgis/rest/services/{host}/{id}/FeatureServer/{layer}": {
       "get": {
         "summary": "Get layer information",
         "description": "Returns layer metadata, fields, and geometry type for the specified layer",
@@ -350,7 +350,7 @@
         }
       }
     },
-    "/postgis/rest/services/{host}/{id}/FeatureServer/{layer}/query": {
+    "/arcgis/rest/services/{host}/{id}/FeatureServer/{layer}/query": {
       "get": {
         "summary": "Query features",
         "description": "Query features with spatial and attribute filters",
@@ -549,7 +549,7 @@
         }
       }
     },
-    "/postgis/rest/services/{host}/{id}/FeatureServer/{layer}/generateRenderer": {
+    "/arcgis/rest/services/{host}/{id}/FeatureServer/{layer}/generateRenderer": {
       "get": {
         "summary": "Generate renderer",
         "description": "Generates rendering information for the layer",
@@ -629,7 +629,7 @@
         }
       }
     },
-    "/postgis/rest/services/{host}/{id}/FeatureServer/{layer}/queryRelatedRecords": {
+    "/arcgis/rest/services/{host}/{id}/FeatureServer/{layer}/queryRelatedRecords": {
       "get": {
         "summary": "Query related records",
         "description": "Query records related to the specified features",
@@ -722,6 +722,163 @@
         "responses": {
           "200": {
             "description": "Related records"
+          }
+        }
+      }
+    },
+    "/arcgis/rest/services/{host}/{id}/VectorTileServer": {
+      "get": {
+        "summary": "Get vector tile service information",
+        "description": "Returns vector tile service metadata and capabilities",
+        "tags": ["Vector Tiles"],
+        "parameters": [
+          {
+            "name": "host",
+            "in": "path",
+            "required": true,
+            "description": "Database host identifier",
+            "schema": {
+              "type": "string",
+              "example": "postgres"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Table identifier in format schema.table",
+            "schema": {
+              "type": "string",
+              "example": "public.cities"
+            }
+          },
+          {
+            "name": "f",
+            "in": "query",
+            "description": "Output format",
+            "schema": {
+              "type": "string",
+              "enum": ["json", "pjson"],
+              "default": "json"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vector tile service metadata"
+          }
+        }
+      }
+    },
+    "/arcgis/rest/services/{host}/{id}/VectorTileServer/{z}/{x}/{y}.pbf": {
+      "get": {
+        "summary": "Get vector tile",
+        "description": "Returns a vector tile in Mapbox Vector Tile (MVT) format",
+        "tags": ["Vector Tiles"],
+        "parameters": [
+          {
+            "name": "host",
+            "in": "path",
+            "required": true,
+            "description": "Database host identifier",
+            "schema": {
+              "type": "string",
+              "example": "postgres"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Table identifier in format schema.table",
+            "schema": {
+              "type": "string",
+              "example": "public.cities"
+            }
+          },
+          {
+            "name": "z",
+            "in": "path",
+            "required": true,
+            "description": "Zoom level",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 22,
+              "example": 10
+            }
+          },
+          {
+            "name": "x",
+            "in": "path",
+            "required": true,
+            "description": "Tile column",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "example": 512
+            }
+          },
+          {
+            "name": "y",
+            "in": "path",
+            "required": true,
+            "description": "Tile row",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "example": 384
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vector tile in MVT format",
+            "content": {
+              "application/x-protobuf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tile not found"
+          }
+        }
+      }
+    },
+    "/arcgis/{host}/{id}/VectorTileServer/tiles.json": {
+      "get": {
+        "summary": "Get TileJSON metadata",
+        "description": "Returns TileJSON specification for the vector tile service",
+        "tags": ["Vector Tiles"],
+        "parameters": [
+          {
+            "name": "host",
+            "in": "path",
+            "required": true,
+            "description": "Database host identifier",
+            "schema": {
+              "type": "string",
+              "example": "postgres"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Table identifier in format schema.table",
+            "schema": {
+              "type": "string",
+              "example": "public.cities"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "TileJSON metadata"
           }
         }
       }
@@ -902,6 +1059,10 @@
     {
       "name": "Relationships",
       "description": "Query related records and relationship operations"
+    },
+    {
+      "name": "Vector Tiles",
+      "description": "Vector tile service operations for high-performance mapping"
     }
   ]
 }
