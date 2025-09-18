@@ -82,22 +82,12 @@
         }
       }
     },
-    "/arcgis/rest/services/{host}/{id}/FeatureServer": {
+    "/arcgis/rest/services/{id}/FeatureServer": {
       "get": {
         "summary": "Get feature service information",
         "description": "Returns service metadata and layer information for the specified table",
         "tags": ["Feature Services"],
         "parameters": [
-          {
-            "name": "host",
-            "in": "path",
-            "required": true,
-            "description": "Database host identifier",
-            "schema": {
-              "type": "string",
-              "example": "postgres"
-            }
-          },
           {
             "name": "id",
             "in": "path",
@@ -144,15 +134,6 @@
         "tags": ["Feature Services"],
         "parameters": [
           {
-            "name": "host",
-            "in": "path",
-            "required": true,
-            "description": "Database host identifier",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "id",
             "in": "path",
             "required": true,
@@ -169,21 +150,12 @@
         }
       }
     },
-    "/arcgis/rest/services/{host}/{id}/FeatureServer/layers": {
+    "/arcgis/rest/services/{id}/FeatureServer/layers": {
       "get": {
         "summary": "Get all layers",
         "description": "Returns information about all layers in the service",
         "tags": ["Feature Services"],
         "parameters": [
-          {
-            "name": "host",
-            "in": "path",
-            "required": true,
-            "description": "Database host identifier",
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "id",
             "in": "path",
@@ -216,15 +188,6 @@
         "tags": ["Feature Services"],
         "parameters": [
           {
-            "name": "host",
-            "in": "path",
-            "required": true,
-            "description": "Database host identifier",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "id",
             "in": "path",
             "required": true,
@@ -241,22 +204,12 @@
         }
       }
     },
-    "/arcgis/rest/services/{host}/{id}/FeatureServer/{layer}": {
+    "/arcgis/rest/services/{id}/FeatureServer/{layer}": {
       "get": {
         "summary": "Get layer information",
         "description": "Returns layer metadata, fields, and geometry type for the specified layer",
         "tags": ["Layer Information"],
         "parameters": [
-          {
-            "name": "host",
-            "in": "path",
-            "required": true,
-            "description": "Database host identifier",
-            "schema": {
-              "type": "string",
-              "example": "postgres"
-            }
-          },
           {
             "name": "id",
             "in": "path",
@@ -316,15 +269,6 @@
         "tags": ["Layer Information"],
         "parameters": [
           {
-            "name": "host",
-            "in": "path",
-            "required": true,
-            "description": "Database host identifier",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "id",
             "in": "path",
             "required": true,
@@ -350,22 +294,12 @@
         }
       }
     },
-    "/arcgis/rest/services/{host}/{id}/FeatureServer/{layer}/query": {
+    "/arcgis/rest/services/{id}/FeatureServer/{layer}/query": {
       "get": {
         "summary": "Query features",
         "description": "Query features with spatial and attribute filters",
         "tags": ["Feature Queries"],
         "parameters": [
-          {
-            "name": "host",
-            "in": "path",
-            "required": true,
-            "description": "Database host identifier",
-            "schema": {
-              "type": "string",
-              "example": "postgres"
-            }
-          },
           {
             "name": "id",
             "in": "path",
@@ -515,15 +449,6 @@
         "tags": ["Feature Queries"],
         "parameters": [
           {
-            "name": "host",
-            "in": "path",
-            "required": true,
-            "description": "Database host identifier",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "id",
             "in": "path",
             "required": true,
@@ -549,21 +474,12 @@
         }
       }
     },
-    "/arcgis/rest/services/{host}/{id}/FeatureServer/{layer}/generateRenderer": {
+    "/arcgis/rest/services/{id}/FeatureServer/{layer}/generateRenderer": {
       "get": {
         "summary": "Generate renderer",
         "description": "Generates rendering information for the layer",
         "tags": ["Rendering"],
         "parameters": [
-          {
-            "name": "host",
-            "in": "path",
-            "required": true,
-            "description": "Database host identifier",
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "id",
             "in": "path",
@@ -595,15 +511,6 @@
         "tags": ["Rendering"],
         "parameters": [
           {
-            "name": "host",
-            "in": "path",
-            "required": true,
-            "description": "Database host identifier",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "id",
             "in": "path",
             "required": true,
@@ -629,21 +536,12 @@
         }
       }
     },
-    "/arcgis/rest/services/{host}/{id}/FeatureServer/{layer}/queryRelatedRecords": {
+    "/arcgis/rest/services/{id}/FeatureServer/{layer}/queryRelatedRecords": {
       "get": {
         "summary": "Query related records",
         "description": "Query records related to the specified features",
         "tags": ["Relationships"],
         "parameters": [
-          {
-            "name": "host",
-            "in": "path",
-            "required": true,
-            "description": "Database host identifier",
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "id",
             "in": "path",
@@ -692,15 +590,6 @@
         "tags": ["Relationships"],
         "parameters": [
           {
-            "name": "host",
-            "in": "path",
-            "required": true,
-            "description": "Database host identifier",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "id",
             "in": "path",
             "required": true,
@@ -726,22 +615,12 @@
         }
       }
     },
-    "/arcgis/rest/services/{host}/{id}/VectorTileServer": {
+    "/arcgis/rest/services/{id}/VectorTileServer": {
       "get": {
         "summary": "Get vector tile service information",
         "description": "Returns vector tile service metadata and capabilities",
         "tags": ["Vector Tiles"],
         "parameters": [
-          {
-            "name": "host",
-            "in": "path",
-            "required": true,
-            "description": "Database host identifier",
-            "schema": {
-              "type": "string",
-              "example": "postgres"
-            }
-          },
           {
             "name": "id",
             "in": "path",
@@ -770,22 +649,12 @@
         }
       }
     },
-    "/arcgis/rest/services/{host}/{id}/VectorTileServer/{z}/{x}/{y}.pbf": {
+    "/arcgis/rest/services/{id}/VectorTileServer/{z}/{x}/{y}.pbf": {
       "get": {
         "summary": "Get vector tile",
         "description": "Returns a vector tile in Mapbox Vector Tile (MVT) format",
         "tags": ["Vector Tiles"],
         "parameters": [
-          {
-            "name": "host",
-            "in": "path",
-            "required": true,
-            "description": "Database host identifier",
-            "schema": {
-              "type": "string",
-              "example": "postgres"
-            }
-          },
           {
             "name": "id",
             "in": "path",
@@ -849,22 +718,12 @@
         }
       }
     },
-    "/arcgis/{host}/{id}/VectorTileServer/tiles.json": {
+    "/arcgis/{id}/VectorTileServer/tiles.json": {
       "get": {
         "summary": "Get TileJSON metadata",
         "description": "Returns TileJSON specification for the vector tile service",
         "tags": ["Vector Tiles"],
         "parameters": [
-          {
-            "name": "host",
-            "in": "path",
-            "required": true,
-            "description": "Database host identifier",
-            "schema": {
-              "type": "string",
-              "example": "postgres"
-            }
-          },
           {
             "name": "id",
             "in": "path",

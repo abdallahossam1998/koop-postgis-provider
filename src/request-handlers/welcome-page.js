@@ -232,7 +232,6 @@ function handleRequest (req, res) {
                     </div>
                     <p>Test the API with sample city data to get started quickly.</p>
                     <a href="/arcgis/rest/services/public.cities/FeatureServer/0/query?where=1=1&f=json" class="btn">Try Sample Query</a>
-                    <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=1=1&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">With Host</a>
                 </div>
                 
                 <div class="card">
@@ -246,29 +245,18 @@ function handleRequest (req, res) {
             </div>
             
             <div class="section">
-                <h2>URL Format Options</h2>
-                <p style="margin-bottom: 1rem; color: #64748b;">This API supports two URL formats for maximum flexibility:</p>
-                <div class="grid" style="margin-bottom: 2rem;">
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="card-icon">🎯</div>
-                            <h3>Simplified URLs (Recommended)</h3>
-                        </div>
-                        <p>Clean, simple URLs without host parameter:</p>
-                        <div style="font-family: 'SF Mono', Monaco, monospace; background: #f8fafc; padding: 0.75rem; border-radius: 0.5rem; margin: 0.5rem 0; font-size: 0.875rem; color: #475569;">
-                            /arcgis/rest/services/public.cities/FeatureServer/0/
-                        </div>
+                <h2>URL Format</h2>
+                <p style="margin-bottom: 1rem; color: #64748b;">This API uses clean, simplified URLs that follow ArcGIS Server conventions:</p>
+                <div class="card" style="margin-bottom: 2rem;">
+                    <div class="card-header">
+                        <div class="card-icon">🎯</div>
+                        <h3>URL Structure</h3>
                     </div>
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="card-icon">🏢</div>
-                            <h3>Multi-Database URLs</h3>
-                        </div>
-                        <p>Explicit host parameter for multi-database setups:</p>
-                        <div style="font-family: 'SF Mono', Monaco, monospace; background: #f8fafc; padding: 0.75rem; border-radius: 0.5rem; margin: 0.5rem 0; font-size: 0.875rem; color: #475569;">
-                            /arcgis/rest/services/postgres/public.cities/FeatureServer/0/
-                        </div>
+                    <p>All endpoints follow this simple pattern:</p>
+                    <div style="font-family: 'SF Mono', Monaco, monospace; background: #f8fafc; padding: 0.75rem; border-radius: 0.5rem; margin: 0.5rem 0; font-size: 0.875rem; color: #475569;">
+                        /arcgis/rest/services/{schema.table}/FeatureServer/{layer}/
                     </div>
+                    <p style="margin-top: 1rem; font-size: 0.875rem; color: #64748b;">Example: <code>/arcgis/rest/services/public.cities/FeatureServer/0/</code></p>
                 </div>
             </div>
             
@@ -285,27 +273,27 @@ function handleRequest (req, res) {
                     </div>
                     <div class="endpoint">
                         <span class="method">GET</span>
-                        <span class="endpoint-path">/arcgis/rest/services/:host/:id/FeatureServer</span>
+                        <span class="endpoint-path">/arcgis/rest/services/:id/FeatureServer</span>
                     </div>
                     <div class="endpoint">
                         <span class="method">GET</span>
-                        <span class="endpoint-path">/arcgis/rest/services/:host/:id/FeatureServer/layers</span>
+                        <span class="endpoint-path">/arcgis/rest/services/:id/FeatureServer/layers</span>
                     </div>
                     <div class="endpoint">
                         <span class="method">GET</span>
-                        <span class="endpoint-path">/arcgis/rest/services/:host/:id/FeatureServer/:layer</span>
+                        <span class="endpoint-path">/arcgis/rest/services/:id/FeatureServer/:layer</span>
                     </div>
                     <div class="endpoint">
                         <span class="method">GET</span>
-                        <span class="endpoint-path">/arcgis/rest/services/:host/:id/FeatureServer/:layer/query</span>
+                        <span class="endpoint-path">/arcgis/rest/services/:id/FeatureServer/:layer/query</span>
                     </div>
                     <div class="endpoint">
                         <span class="method">GET</span>
-                        <span class="endpoint-path">/arcgis/rest/services/:host/:id/FeatureServer/:layer/generateRenderer</span>
+                        <span class="endpoint-path">/arcgis/rest/services/:id/FeatureServer/:layer/generateRenderer</span>
                     </div>
                     <div class="endpoint">
                         <span class="method">GET</span>
-                        <span class="endpoint-path">/arcgis/rest/services/:host/:id/FeatureServer/:layer/queryRelatedRecords</span>
+                        <span class="endpoint-path">/arcgis/rest/services/:id/FeatureServer/:layer/queryRelatedRecords</span>
                     </div>
                 </div>
             </div>
@@ -320,8 +308,8 @@ function handleRequest (req, res) {
                         </div>
                         <p>Get service information, layers, and capabilities</p>
                         <div style="margin-bottom: 1rem;">
-                            <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer?f=json" class="btn" target="_blank">Service Info</a>
-                            <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/layers?f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">All Layers</a>
+                            <a href="/arcgis/rest/services/public.cities/FeatureServer?f=json" class="btn" target="_blank">Service Info</a>
+                            <a href="/arcgis/rest/services/public.cities/FeatureServer/layers?f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">All Layers</a>
                         </div>
                     </div>
                     
@@ -332,8 +320,8 @@ function handleRequest (req, res) {
                         </div>
                         <p>Layer schema, geometry type, and field definitions</p>
                         <div style="margin-bottom: 1rem;">
-                            <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/0?f=json" class="btn" target="_blank">Layer Details</a>
-                            <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/0/info?f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Layer Info</a>
+                            <a href="/arcgis/rest/services/public.cities/FeatureServer/0?f=json" class="btn" target="_blank">Layer Details</a>
+                            <a href="/arcgis/rest/services/public.cities/FeatureServer/0/info?f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Layer Info</a>
                         </div>
                     </div>
                     
@@ -344,8 +332,8 @@ function handleRequest (req, res) {
                         </div>
                         <p>Simple feature queries with different parameters</p>
                         <div style="margin-bottom: 1rem;">
-                            <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=1=1&f=json" class="btn" target="_blank">All Features</a>
-                            <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=1=1&f=geojson" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">GeoJSON Format</a>
+                            <a href="/arcgis/rest/services/public.cities/FeatureServer/0/query?where=1=1&f=json" class="btn" target="_blank">All Features</a>
+                            <a href="/arcgis/rest/services/public.cities/FeatureServer/0/query?where=1=1&f=geojson" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">GeoJSON Format</a>
                         </div>
                     </div>
                     
@@ -356,8 +344,8 @@ function handleRequest (req, res) {
                         </div>
                         <p>Filter features using SQL WHERE conditions</p>
                         <div style="margin-bottom: 1rem;">
-                            <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=population>1000000&f=json" class="btn" target="_blank">Large Cities</a>
-                            <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=city_name LIKE 'New%'&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Name Filter</a>
+                            <a href="/arcgis/rest/services/public.cities/FeatureServer/0/query?where=population>1000000&f=json" class="btn" target="_blank">Large Cities</a>
+                            <a href="/arcgis/rest/services/public.cities/FeatureServer/0/query?where=city_name LIKE 'New%'&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Name Filter</a>
                         </div>
                     </div>
                     
@@ -368,8 +356,8 @@ function handleRequest (req, res) {
                         </div>
                         <p>Query features using bounding box filters</p>
                         <div style="margin-bottom: 1rem;">
-                            <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/0/query?bbox=-180,-90,180,90&f=json" class="btn" target="_blank">World Bbox</a>
-                            <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/0/query?bbox=-75,40,-73,41&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">NYC Area</a>
+                            <a href="/arcgis/rest/services/public.cities/FeatureServer/0/query?bbox=-180,-90,180,90&f=json" class="btn" target="_blank">World Bbox</a>
+                            <a href="/arcgis/rest/services/public.cities/FeatureServer/0/query?bbox=-75,40,-73,41&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">NYC Area</a>
                         </div>
                     </div>
                     
@@ -380,8 +368,8 @@ function handleRequest (req, res) {
                         </div>
                         <p>Control result sets with pagination and ordering</p>
                         <div style="margin-bottom: 1rem;">
-                            <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=1=1&resultRecordCount=10&f=json" class="btn" target="_blank">First 10</a>
-                            <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=1=1&orderByFields=population DESC&resultRecordCount=5&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Top 5 by Pop</a>
+                            <a href="/arcgis/rest/services/public.cities/FeatureServer/0/query?where=1=1&resultRecordCount=10&f=json" class="btn" target="_blank">First 10</a>
+                            <a href="/arcgis/rest/services/public.cities/FeatureServer/0/query?where=1=1&orderByFields=population DESC&resultRecordCount=5&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Top 5 by Pop</a>
                         </div>
                     </div>
                     
@@ -392,8 +380,8 @@ function handleRequest (req, res) {
                         </div>
                         <p>Generate rendering information for the layer</p>
                         <div style="margin-bottom: 1rem;">
-                            <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/0/generateRenderer?f=json" class="btn" target="_blank">Generate Renderer</a>
-                            <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/0?f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Layer Schema</a>
+                            <a href="/arcgis/rest/services/public.cities/FeatureServer/0/generateRenderer?f=json" class="btn" target="_blank">Generate Renderer</a>
+                            <a href="/arcgis/rest/services/public.cities/FeatureServer/0?f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Layer Schema</a>
                         </div>
                     </div>
                     
@@ -404,8 +392,8 @@ function handleRequest (req, res) {
                         </div>
                         <p>Work with specific fields and return formats</p>
                         <div style="margin-bottom: 1rem;">
-                            <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=1=1&outFields=city_name,population&f=json" class="btn" target="_blank">Select Fields</a>
-                            <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=1=1&outFields=city_id&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">IDs Only</a>
+                            <a href="/arcgis/rest/services/public.cities/FeatureServer/0/query?where=1=1&outFields=city_name,population&f=json" class="btn" target="_blank">Select Fields</a>
+                            <a href="/arcgis/rest/services/public.cities/FeatureServer/0/query?where=1=1&outFields=city_id&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">IDs Only</a>
                         </div>
                     </div>
                     
@@ -429,8 +417,8 @@ function handleRequest (req, res) {
                         </div>
                         <p>Test different output formats supported by the service</p>
                         <div style="margin-bottom: 1rem;">
-                            <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=1=1&resultRecordCount=5&f=json" class="btn" target="_blank">JSON</a>
-                            <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=1=1&resultRecordCount=5&f=geojson" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">GeoJSON</a>
+                            <a href="/arcgis/rest/services/public.cities/FeatureServer/0/query?where=1=1&resultRecordCount=5&f=json" class="btn" target="_blank">JSON</a>
+                            <a href="/arcgis/rest/services/public.cities/FeatureServer/0/query?where=1=1&resultRecordCount=5&f=geojson" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">GeoJSON</a>
                         </div>
                     </div>
                     
@@ -441,8 +429,8 @@ function handleRequest (req, res) {
                         </div>
                         <p>Complex queries with multiple parameters and conditions</p>
                         <div style="margin-bottom: 1rem;">
-                            <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=population BETWEEN 500000 AND 2000000&orderByFields=city_name ASC&outFields=city_name,population,country&resultRecordCount=10&f=json" class="btn" target="_blank">Complex Query</a>
-                            <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=country='USA'&orderByFields=population DESC&resultRecordCount=5&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">USA Cities</a>
+                            <a href="/arcgis/rest/services/public.cities/FeatureServer/0/query?where=population BETWEEN 500000 AND 2000000&orderByFields=city_name ASC&outFields=city_name,population,country&resultRecordCount=10&f=json" class="btn" target="_blank">Complex Query</a>
+                            <a href="/arcgis/rest/services/public.cities/FeatureServer/0/query?where=country='USA'&orderByFields=population DESC&resultRecordCount=5&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">USA Cities</a>
                         </div>
                     </div>
                 </div>
@@ -453,19 +441,19 @@ function handleRequest (req, res) {
                 <div class="endpoint-list">
                     <div class="endpoint">
                         <span class="method">GET</span>
-                        <span class="endpoint-path">/arcgis/rest/services/:host/:id/VectorTileServer</span>
+                        <span class="endpoint-path">/arcgis/rest/services/:id/VectorTileServer</span>
                     </div>
                     <div class="endpoint">
                         <span class="method">GET</span>
-                        <span class="endpoint-path">/arcgis/rest/services/:host/:id/VectorTileServer/:z/:x/:y.pbf</span>
+                        <span class="endpoint-path">/arcgis/rest/services/:id/VectorTileServer/:z/:x/:y.pbf</span>
                     </div>
                     <div class="endpoint">
                         <span class="method">GET</span>
-                        <span class="endpoint-path">/arcgis/:host/:id/VectorTileServer/tiles.json</span>
+                        <span class="endpoint-path">/arcgis/:id/VectorTileServer/tiles.json</span>
                     </div>
                     <div class="endpoint">
                         <span class="method">GET</span>
-                        <span class="endpoint-path">/arcgis/:host/:id/VectorTileServer/:z/:x/:y.pbf</span>
+                        <span class="endpoint-path">/arcgis/:id/VectorTileServer/:z/:x/:y.pbf</span>
                     </div>
                 </div>
                 
@@ -477,8 +465,8 @@ function handleRequest (req, res) {
                         </div>
                         <p>Access vector tiles for high-performance mapping applications</p>
                         <div style="margin-bottom: 1rem;">
-                            <a href="/arcgis/rest/services/postgres/public.cities/VectorTileServer?f=json" class="btn" target="_blank">Service Info</a>
-                            <a href="/arcgis/postgres/public.cities/VectorTileServer/tiles.json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">TileJSON</a>
+                            <a href="/arcgis/rest/services/public.cities/VectorTileServer?f=json" class="btn" target="_blank">Service Info</a>
+                            <a href="/arcgis/public.cities/VectorTileServer/tiles.json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">TileJSON</a>
                         </div>
                     </div>
                     
@@ -489,8 +477,8 @@ function handleRequest (req, res) {
                         </div>
                         <p>Test vector tile endpoints with sample coordinates</p>
                         <div style="margin-bottom: 1rem;">
-                            <a href="/arcgis/postgres/public.cities/VectorTileServer/0/0/0.pbf" class="btn" target="_blank">World Tile (0/0/0)</a>
-                            <a href="/arcgis/postgres/public.cities/VectorTileServer/4/8/5.pbf" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Sample Tile</a>
+                            <a href="/arcgis/public.cities/VectorTileServer/0/0/0.pbf" class="btn" target="_blank">World Tile (0/0/0)</a>
+                            <a href="/arcgis/public.cities/VectorTileServer/4/8/5.pbf" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Sample Tile</a>
                         </div>
                     </div>
                 </div>
