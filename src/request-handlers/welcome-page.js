@@ -231,7 +231,8 @@ function handleRequest (req, res) {
                         <h3>Quick Test</h3>
                     </div>
                     <p>Test the API with sample city data to get started quickly.</p>
-                    <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=1=1&f=json" class="btn">Try Sample Query</a>
+                    <a href="/arcgis/rest/services/public.cities/FeatureServer/0/query?where=1=1&f=json" class="btn">Try Sample Query</a>
+                    <a href="/arcgis/rest/services/postgres/public.cities/FeatureServer/0/query?where=1=1&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">With Host</a>
                 </div>
                 
                 <div class="card">
@@ -241,6 +242,33 @@ function handleRequest (req, res) {
                     </div>
                     <p>Manage your PostgreSQL database with pgAdmin interface.</p>
                     <a href="http://localhost:5050" class="btn btn-secondary" target="_blank">Open pgAdmin</a>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>URL Format Options</h2>
+                <p style="margin-bottom: 1rem; color: #64748b;">This API supports two URL formats for maximum flexibility:</p>
+                <div class="grid" style="margin-bottom: 2rem;">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">🎯</div>
+                            <h3>Simplified URLs (Recommended)</h3>
+                        </div>
+                        <p>Clean, simple URLs without host parameter:</p>
+                        <div style="font-family: 'SF Mono', Monaco, monospace; background: #f8fafc; padding: 0.75rem; border-radius: 0.5rem; margin: 0.5rem 0; font-size: 0.875rem; color: #475569;">
+                            /arcgis/rest/services/public.cities/FeatureServer/0/
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">🏢</div>
+                            <h3>Multi-Database URLs</h3>
+                        </div>
+                        <p>Explicit host parameter for multi-database setups:</p>
+                        <div style="font-family: 'SF Mono', Monaco, monospace; background: #f8fafc; padding: 0.75rem; border-radius: 0.5rem; margin: 0.5rem 0; font-size: 0.875rem; color: #475569;">
+                            /arcgis/rest/services/postgres/public.cities/FeatureServer/0/
+                        </div>
+                    </div>
                 </div>
             </div>
             
