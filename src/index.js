@@ -7,9 +7,14 @@ const { setupSwagger } = require('./request-handlers/swagger-docs')
 // initiate a koop app
 const koop = new Koop()
 
-// register koop plugins
+// register all plugins (providers, outputs, auths, caches)
 plugins.forEach((plugin) => {
-  koop.register(plugin.instance, plugin.options)
+  try {
+    koop.register(plugin.instance, plugin.options)
+    console.log(`Successfully registered plugin: ${plugin.instance.name || 'Unknown'}`)
+  } catch (error) {
+    console.error(`Failed to register plugin:`, error.message)
+  }
 })
 
 // setup swagger documentation
