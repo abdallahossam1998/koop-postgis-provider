@@ -16,6 +16,10 @@ class Controller {
       switch (method) {
         case 'query':
           return this.handleQuery(req, res)
+        case 'queryRelatedRecords':
+          return this.handleQueryRelatedRecords(req, res)
+        case 'queryrelated':
+          return this.handleQueryRelatedRecords(req, res)
         case 'info':
           return this.handleLayerInfo(req, res)
         default:
@@ -46,6 +50,10 @@ class Controller {
       switch (method) {
         case 'query':
           return this.handleQuery(req, res)
+        case 'queryRelatedRecords':
+          return this.handleQueryRelatedRecords(req, res)
+        case 'queryrelated':
+          return this.handleQueryRelatedRecords(req, res)
         case 'info':
           return this.handleLayerInfo(req, res)
         default:
@@ -99,6 +107,111 @@ class Controller {
           // Convert to Esri JSON format
           const esriJson = this.convertToEsriJson(geojson, req.query)
           res.json(esriJson)
+        }
+      })
+    } catch (error) {
+      this.handleError(res, error)
+    }
+  }
+
+  /**
+   * Handle queryRelatedRecords requests
+   */
+  async handleQueryRelatedRecords(req, res) {
+    
+    try {
+      const { layer } = req.params
+      const { objectIds, relationshipId, definitionExpression, outFields, returnGeometry, f } = req.query
+      
+      // Get the main layer metadata to find relationships
+      this.model.getData(req, async (error, geojson) => {
+        if (error) {
+          return this.handleError(res, error)
+        }
+        
+        try {
+          const relationships = geojson.metadata.relationships || []
+          
+          // Handle relationshipId - remove quotes if present
+          let cleanRelationshipId = relationshipId
+          if (typeof relationshipId === 'string' && relationshipId.startsWith('"') && relationshipId.endsWith('"')) {
+            cleanRelationshipId = relationshipId.slice(1, -1)
+          }
+          
+          // Find the relationship
+          let relationship
+          if (cleanRelationshipId !== undefined && cleanRelationshipId !== null) {
+            const relId = parseInt(cleanRelationshipId)
+            relationship = relationships.find(rel => rel.id === relId)
+            
+            if (!relationship) {
+              relationship = relationships.find(rel => rel.name === cleanRelationshipId)
+            }
+          } else {
+            relationship = relationships[0] // Use first relationship if none specified
+          }
+          
+          if (!relationship) {
+            return res.status(400).json({
+              error: {
+                code: 400,
+                message: `Relationship not found. Available relationships: ${relationships.map(r => `${r.id}:${r.name}`).join(', ')}`,
+                details: []
+              }
+            })
+          }
+          
+          
+          // Get object IDs to query
+          let targetObjectIds = []
+          if (objectIds) {
+            targetObjectIds = objectIds.split(',').map(id => parseInt(id))
+          } else {
+            // Get all object IDs from the main layer (limit to first 3 for testing)
+            const mainLayerFeatures = geojson.features || []
+            const idField = geojson.metadata.idField || 'location_id'
+            const allObjectIds = mainLayerFeatures.map(feature => feature.properties[idField]).filter(id => id != null)
+            targetObjectIds = allObjectIds.slice(0, 3)
+          }
+          
+          
+          // For now, return test data to verify the endpoint is working
+          const relatedRecords = targetObjectIds.map(objectId => ({
+            objectId: objectId,
+            relatedRecords: [
+              {
+                attributes: {
+                  id: 1,
+                  location_id: objectId,
+                  name: `Test ${relationship.relatedTableName} for location ${objectId}`,
+                  type: relationship.relatedTableName,
+                  relationship_id: relationship.id
+                }
+              }
+            ]
+          }))
+          
+          // Format response according to Esri specification
+          const response = {
+            relatedRecordGroups: relatedRecords.map(group => ({
+              objectId: group.objectId,
+              relatedRecords: group.relatedRecords.map(record => ({
+                attributes: record.attributes,
+                geometry: returnGeometry === 'true' ? record.geometry : undefined
+              }))
+            }))
+          }
+          
+          res.json(response)
+          
+        } catch (relatedError) {
+          return res.status(500).json({
+            error: {
+              code: 500,
+              message: `Related records error: ${relatedError.message}`,
+              details: []
+            }
+          })
         }
       })
     } catch (error) {
@@ -192,7 +305,7 @@ class Controller {
           TextAntialiasingMode: 'Force',
           Keywords: 'koop,postgis,postgresql'
         },
-        capabilities: 'Map,Query,Data',
+        capabilities: 'Map,Query,Data,Relationship',
         supportedQueryFormats: 'JSON, geoJSON',
         supportedExportFormats: 'sqlite,filegdb,shapefile,csv,kml,kmz',
         hasVersionedData: false,
@@ -358,23 +471,6 @@ class Controller {
   }
 
   /**
-   * Convert relationships to Esri format
-   */
-  convertRelationshipsToEsri(relationships) {
-    if (!relationships || !Array.isArray(relationships)) return []
-
-    return relationships.map(rel => ({
-      id: rel.id,
-      name: rel.name,
-      relatedTableId: rel.relatedTableId,
-      cardinality: rel.cardinality,
-      role: rel.role,
-      keyField: rel.keyField,
-      composite: rel.composite || false
-    }))
-  }
-
-  /**
    * Generate layer info response
    */
   generateLayerInfo(metadata, params) {
@@ -385,7 +481,6 @@ class Controller {
     const hasDateFields = dateFields.length > 0
     
     // Determine if this should be a temporal layer
-    // Check environment variable for temporal configuration
     const enableTemporal = process.env.KOOP_ENABLE_TEMPORAL === 'true'
     const temporalField = process.env.KOOP_TEMPORAL_FIELD || metadata.displayField
     
@@ -437,7 +532,7 @@ class Controller {
       canModifyLayer: false,
       canScaleSymbols: false,
       hasLabels: false,
-      capabilities: 'Map,Query,Data',
+      capabilities: 'Map,Query,Data,Relationship',
       maxRecordCount: metadata.maxRecordCount || parseInt(process.env.KOOP_MAX_RECORD_COUNT) || 100000,
       supportsStatistics: true,
       supportsAdvancedQueries: true,
@@ -480,7 +575,6 @@ class Controller {
         defaultTimeIntervalUnits: 'esriTimeUnitsHours'
       }
       
-      // Add temporal capabilities
       layerInfo.supportsTime = true
       layerInfo.timeInfo.exportOptions = {
         useTime: true,
@@ -489,7 +583,6 @@ class Controller {
         timeOffsetUnits: null
       }
     } else {
-      // Explicitly set timeInfo to null for non-temporal layers
       layerInfo.timeInfo = null
       layerInfo.supportsTime = false
     }
