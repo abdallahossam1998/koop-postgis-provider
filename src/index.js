@@ -1,5 +1,5 @@
 const config = require('config')
-const Koop = require('@koopjs/koop-core')
+const Koop = require('./core')
 const routes = require('./routes')
 const plugins = require('./plugins')
 const { setupSwagger } = require('./request-handlers/swagger-docs')
