@@ -4,7 +4,7 @@ const { sharedQueryParamSchema } = require('../helpers/shared-query-request-para
 const queryRequestSchema = sharedQueryParamSchema
   .append({
     f: joi.string().valid('json', 'pjson').default('json'),
-    relationshipId: joi.string().optional(),
+    relationshipId: joi.alternatives().try(joi.string(), joi.number()).optional(),
   })
   .unknown();
 
