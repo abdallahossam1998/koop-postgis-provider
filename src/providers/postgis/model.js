@@ -9,6 +9,38 @@ class Model {
     this.pool = null
   }
 
+  async pull(request) {
+    
+    // Check if this is a queryRelatedRecords request
+    const isQueryRelatedRecords = (request.url && request.url.includes('queryRelatedRecords')) || 
+                                  (request.params && request.params.method === 'queryRelatedRecords')
+    
+    if (isQueryRelatedRecords) {
+      
+      // Handle queryRelatedRecords specially
+      return new Promise((resolve, reject) => {
+        this.getRelatedRecordsData(request, (error, data) => {
+          if (error) {
+            reject(error)
+          } else {
+            resolve(data)
+          }
+        })
+      })
+    }
+    
+    // For regular requests, call getData with a callback wrapper
+    return new Promise((resolve, reject) => {
+      this.getData(request, (error, data) => {
+        if (error) {
+          reject(error)
+        } else {
+          resolve(data)
+        }
+      })
+    })
+  }
+
   /**
    * Initialize database connection pool
    */
@@ -41,7 +73,16 @@ class Model {
   async getData(request, callback) {
     try {
       const { params, query } = request
-      const { id, layer } = params
+      const { id, layer, method } = params
+      
+      
+      // Check if this is a queryRelatedRecords request
+      const isQueryRelatedRecords = method === 'queryRelatedRecords' || 
+                                   (request.url && request.url.includes('queryRelatedRecords'))
+      
+      if (isQueryRelatedRecords) {
+        return this.getRelatedRecordsData(request, callback)
+      }
       
       // Always use default host since we removed host parameter from URLs
       const host = 'default'
@@ -59,15 +100,6 @@ class Model {
       // Add metadata
       geojson.metadata = await this.generateMetadata(tableInfo, config)
       
-      // Debug: Log the complete metadata including relationships
-      console.log('Complete metadata being passed to Koop:', JSON.stringify(geojson.metadata, null, 2))
-      
-      // Debug: Also log the relationships specifically
-      if (geojson.metadata && geojson.metadata.relationships) {
-        console.log('Relationships in metadata:', JSON.stringify(geojson.metadata.relationships, null, 2))
-      } else {
-        console.log('No relationships found in metadata')
-      }
       
       callback(null, geojson)
     } catch (error) {
@@ -518,17 +550,355 @@ class Model {
           cardinality: isOrigin ? 'esriRelCardinalityOneToMany' : 'esriRelCardinalityManyToOne',
           role: isOrigin ? 'esriRelRoleOrigin' : 'esriRelRoleDestination',
           keyField: isOrigin ? row.origin_column : row.destination_column,
-          composite: false
+          composite: false,
+          // Add additional metadata for better Esri compatibility
+          relatedTableName: relatedTableName,
+          originTable: row.origin_table,
+          destinationTable: row.destination_table,
+          originColumn: row.origin_column,
+          destinationColumn: row.destination_column
         }
       })
       
-      console.log(`Found ${relationships.length} relationships for table ${tableName}:`, relationships)
       return relationships
     } catch (error) {
-      console.warn('Failed to get table relationships:', error.message)
-      return []
+        return []
     } finally {
       client.release()
+    }
+  }
+
+  /**
+   * Get main layer data without recursion
+   */
+  async getMainLayerData(request) {
+    const { params, query } = request
+    const { id, layer } = params
+    
+    // Always use default host since we removed host parameter from URLs
+    const host = 'default'
+    
+    // Get database configuration
+    const config = this.getDatabaseConfig(host)
+    await this.initializePool(config)
+
+    // Parse table and layer information
+    const tableInfo = await this.parseTableInfo(id, layer)
+    
+    // Build and execute query
+    const geojson = await this.executeQuery(tableInfo, query, config)
+    
+    // Add metadata
+    geojson.metadata = await this.generateMetadata(tableInfo, config)
+    
+    return geojson
+  }
+
+  /**
+   * Get related records data in the special format Koop expects
+   * @param {Object} request - Express request object
+   * @param {Function} callback - Callback function
+   */
+  async getRelatedRecordsData(request, callback) {
+    try {
+      const { params, query } = request
+      const { objectIds, relationshipId } = query
+      
+      
+      // Get the main layer metadata directly without calling getData to avoid recursion
+      const mainGeojson = await this.getMainLayerData(request)
+      
+      const relationships = mainGeojson.metadata.relationships || []
+      
+      // Handle relationshipId - remove quotes if present
+      let cleanRelationshipId = relationshipId
+      if (typeof relationshipId === 'string' && relationshipId.startsWith('"') && relationshipId.endsWith('"')) {
+        cleanRelationshipId = relationshipId.slice(1, -1)
+      }
+      
+      // Find the relationship
+      const relId = parseInt(cleanRelationshipId)
+      const relationship = relationships.find(rel => rel.id === relId)
+      
+      if (!relationship) {
+        return callback(new Error(`Relationship ${cleanRelationshipId} not found`))
+      }
+      
+      
+      // Get object IDs to query
+      let targetObjectIds = []
+      if (objectIds) {
+        targetObjectIds = objectIds.split(',').map(id => parseInt(id))
+      } else {
+        // Get first few object IDs from main layer
+        const mainFeatures = mainGeojson.features || []
+        const idField = mainGeojson.metadata.idField || 'location_id'
+        targetObjectIds = mainFeatures.slice(0, 3).map(f => f.properties[idField])
+      }
+      
+      
+      // Query actual related records from database
+      const relatedRecordsResult = await this.queryRelatedRecords({
+        sourceLayer: mainGeojson.metadata.name,
+        sourceLayerId: parseInt(params.layer) || 0,
+        objectIds: targetObjectIds,
+        relationship: relationship,
+        definitionExpression: query.definitionExpression,
+        outFields: query.outFields,
+        returnGeometry: query.returnGeometry === 'true'
+      })
+      
+      
+      // Convert to Koop's expected format: FeatureCollection with features array containing FeatureCollections
+      const relatedFeatureCollections = relatedRecordsResult.map(group => ({
+        type: 'FeatureCollection',
+        properties: {
+          objectid: group.objectId // Note: lowercase 'objectid' as expected by Koop
+        },
+        features: group.relatedRecords.map(record => ({
+          type: 'Feature',
+          properties: record.attributes,
+          geometry: record.geometry || null
+        }))
+      }))
+      
+      // Return the special FeatureCollection of FeatureCollections format
+      const specialGeojson = {
+        type: 'FeatureCollection',
+        features: relatedFeatureCollections,
+        metadata: {
+          name: `${mainGeojson.metadata.name}_related`,
+          description: `Related records for ${relationship.relatedTableName}`,
+          geometryType: null, // Related tables are typically non-spatial
+          fields: [
+            { name: 'id', type: 'Integer', alias: 'ID' },
+            { name: relationship.keyField || 'location_id', type: 'Integer', alias: 'Location ID' },
+            { name: 'name', type: 'String', alias: 'Name' },
+            { name: 'description', type: 'String', alias: 'Description' }
+          ]
+        }
+      }
+      
+      callback(null, specialGeojson)
+      
+    } catch (error) {
+      callback(error)
+    }
+  }
+
+  /**
+   * Query related records for given object IDs and relationship
+   */
+  async queryRelatedRecords(options) {
+    const { sourceLayer, sourceLayerId, objectIds, relationship, definitionExpression, outFields, returnGeometry } = options
+    
+    if (!this.pool) {
+      throw new Error('Database pool not initialized')
+    }
+    
+    const client = await this.pool.connect()
+    try {
+      // Get the related table name from the relationship
+      // Use the relatedTableName directly from the relationship metadata
+      const relatedTableName = relationship.relatedTableName
+      
+      
+      if (!relatedTableName) {
+        throw new Error(`No related table name found in relationship`)
+      }
+      
+      
+      const relatedRecordGroups = []
+      
+      // Query related records for each object ID
+      for (const objectId of objectIds) {
+        let query
+        let queryParams
+        
+        // Check if the related table has geometry column
+        const hasGeomQuery = `
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_name = $1 AND column_name = 'geom'
+        `
+        const hasGeomResult = await client.query(hasGeomQuery, [relatedTableName])
+        const hasGeometry = hasGeomResult.rows.length > 0
+        
+        // Build query based on relationship cardinality and role
+        // For our case: locations is destination, related tables are origin
+        // So we need to find records in related tables where location_id = objectId
+        
+        
+        if (relationship.role === 'esriRelRoleDestination') {
+          // This layer (locations) is the destination
+          // Find records in the related table that reference this location
+          const foreignKeyColumn = relationship.originColumn // This should be 'location_id' in the related table
+          
+          if (hasGeometry) {
+            query = `
+              SELECT *, ST_AsGeoJSON(geom) as geojson_geom FROM ${relatedTableName} 
+              WHERE ${foreignKeyColumn} = $1
+            `
+          } else {
+            query = `
+              SELECT * FROM ${relatedTableName} 
+              WHERE ${foreignKeyColumn} = $1
+            `
+          }
+          queryParams = [objectId]
+        } else {
+          // This layer is the origin, find the record it references
+          const primaryKeyColumn = relationship.destinationColumn
+          
+          if (hasGeometry) {
+            query = `
+              SELECT *, ST_AsGeoJSON(geom) as geojson_geom FROM ${relatedTableName} 
+              WHERE ${primaryKeyColumn} = $1
+            `
+          } else {
+            query = `
+              SELECT * FROM ${relatedTableName} 
+              WHERE ${primaryKeyColumn} = $1
+            `
+          }
+          queryParams = [objectId]
+        }
+        
+        // Add definition expression if provided
+        if (definitionExpression) {
+          query += ` AND (${definitionExpression})`
+        }
+        
+        // Add field selection if specified
+        if (outFields && outFields.length > 0 && !outFields.includes('*')) {
+          const fieldList = outFields.join(', ')
+          query = query.replace('SELECT *', `SELECT ${fieldList}`)
+        }
+        
+        
+        // Write query to debug file for inspection
+        const fs = require('fs')
+        fs.appendFileSync('query-debug.log', `\n=== Query Debug ===\n`)
+        fs.appendFileSync('query-debug.log', `Table: ${relatedTableName}\n`)
+        fs.appendFileSync('query-debug.log', `ObjectId: ${objectId}\n`)
+        fs.appendFileSync('query-debug.log', `Query: ${query}\n`)
+        fs.appendFileSync('query-debug.log', `Params: ${JSON.stringify(queryParams)}\n`)
+        
+        const result = await client.query(query, queryParams)
+        
+        fs.appendFileSync('query-debug.log', `Result count: ${result.rows.length}\n`)
+        if (result.rows.length > 0) {
+          fs.appendFileSync('query-debug.log', `Sample result: ${JSON.stringify(result.rows[0])}\n`)
+        }
+        
+        // Format the related records
+        const relatedRecords = result.rows.map(row => {
+          const record = {
+            attributes: { ...row }
+          }
+          
+          // Add geometry if requested and available
+          if (returnGeometry && row.geom) {
+            try {
+              const geojsonGeom = JSON.parse(row.geojson_geom || '{}')
+              record.geometry = this.convertGeometryToEsri(geojsonGeom)
+            } catch (e) {
+              console.warn('Failed to parse geometry for related record:', e.message)
+            }
+          }
+          
+          // Remove internal geometry fields from attributes
+          delete record.attributes.geom
+          delete record.attributes.geojson_geom
+          delete record.attributes.geom_type
+          
+          return record
+        })
+        
+        relatedRecordGroups.push({
+          objectId: objectId,
+          relatedRecords: relatedRecords
+        })
+      }
+      
+      return relatedRecordGroups
+      
+    } catch (error) {
+      console.error('Error querying related records:', error)
+      throw error
+    } finally {
+      client.release()
+    }
+  }
+  
+  /**
+   * Get table name from generated table ID
+   */
+  async getTableNameFromId(tableId) {
+    if (!this.pool) return null
+    
+    const client = await this.pool.connect()
+    try {
+      // Query all tables and find the one with matching generated ID
+      const query = `
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_type = 'BASE TABLE'
+      `
+      
+      const result = await client.query(query)
+      
+      for (const row of result.rows) {
+        const generatedId = this.generateTableId(row.table_name)
+        if (generatedId === tableId) {
+          return row.table_name
+        }
+      }
+      
+      return null
+    } catch (error) {
+      console.warn('Failed to get table name from ID:', error.message)
+      return null
+    } finally {
+      client.release()
+    }
+  }
+  
+  /**
+   * Convert GeoJSON geometry to Esri geometry format
+   */
+  convertGeometryToEsri(geometry) {
+    if (!geometry) return null
+
+    switch (geometry.type) {
+      case 'Point':
+        return {
+          x: geometry.coordinates[0],
+          y: geometry.coordinates[1]
+        }
+      case 'MultiPoint':
+        return {
+          points: geometry.coordinates
+        }
+      case 'LineString':
+        return {
+          paths: [geometry.coordinates]
+        }
+      case 'MultiLineString':
+        return {
+          paths: geometry.coordinates
+        }
+      case 'Polygon':
+        return {
+          rings: geometry.coordinates
+        }
+      case 'MultiPolygon':
+        return {
+          rings: geometry.coordinates.flat()
+        }
+      default:
+        return null
     }
   }
 
@@ -537,17 +907,14 @@ class Model {
    */
   extractFields(rows) {
     if (!rows || rows.length === 0) {
-      console.log('No rows provided to extractFields')
       return []
     }
     
     const sampleRow = rows[0]
     if (!sampleRow) {
-      console.log('First row is undefined')
       return []
     }
     
-    console.log('Sample row for field extraction:', sampleRow)
     const fields = []
     
     Object.keys(sampleRow).forEach(key => {
@@ -687,20 +1054,19 @@ class Model {
           alias: col.column_name,
           length: col.character_maximum_length || 255
         }))
-
       // Determine geometry type
       let geometryType = null
       if (geometryColumn && geometryInfo.rows.length > 0) {
         const pgGeomType = geometryInfo.rows[0].geom_type
-        console.log(`PostGIS geometry type for ${table}:`, pgGeomType)
         geometryType = this.mapPostgisToEsriGeometryType(pgGeomType)
-        console.log(`Mapped to Esri geometry type:`, geometryType)
       }
 
       // Parse extent
-      let extent = [[-180, -90], [180, 90]] // Default world extent
+      let extent = null
       if (geometryColumn && extentInfo.rows.length > 0 && extentInfo.rows[0].extent) {
         extent = this.parsePostgisExtent(extentInfo.rows[0].extent)
+      } else {
+        extent = [[-180, -90], [180, 90]] // Default world extent
       }
 
       // Get relationships for this table
