@@ -299,6 +299,100 @@ function handleRequest (req, res) {
             </div>
             
             <div class="section">
+                <h2>🔗 Relationship Queries</h2>
+                <p style="margin-bottom: 1.5rem; color: #64748b;">This provider automatically detects PostgreSQL foreign key relationships and exposes them as ArcGIS-compatible relationship queries. Perfect for exploring related data like buildings at locations, infrastructure details, and points of interest.</p>
+                
+                <div class="grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">🏢</div>
+                            <h3>Buildings Relationship</h3>
+                        </div>
+                        <p>Get all buildings associated with specific locations</p>
+                        <div style="margin-bottom: 1rem;">
+                            <a href="/arcgis/rest/services/test_locations/FeatureServer/0/queryRelatedRecords?objectIds=1&relationshipId=0&f=json" class="btn" target="_blank">Location 1 Buildings</a>
+                            <a href="/arcgis/rest/services/test_locations/FeatureServer/0/queryRelatedRecords?objectIds=1,2,3&relationshipId=0&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Multiple Locations</a>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">🚧</div>
+                            <h3>Infrastructure Relationship</h3>
+                        </div>
+                        <p>Query infrastructure records related to locations</p>
+                        <div style="margin-bottom: 1rem;">
+                            <a href="/arcgis/rest/services/test_locations/FeatureServer/0/queryRelatedRecords?objectIds=1&relationshipId=1&f=json" class="btn" target="_blank">Location Infrastructure</a>
+                            <a href="/arcgis/rest/services/test_locations/FeatureServer/0/queryRelatedRecords?objectIds=1&relationshipId=1&outFields=*&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">All Fields</a>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">🌍</div>
+                            <h3>Land Use Relationship</h3>
+                        </div>
+                        <p>Get land use information for specific locations</p>
+                        <div style="margin-bottom: 1rem;">
+                            <a href="/arcgis/rest/services/test_locations/FeatureServer/0/queryRelatedRecords?objectIds=1&relationshipId=2&f=json" class="btn" target="_blank">Land Use Data</a>
+                            <a href="/arcgis/rest/services/test_locations/FeatureServer/0/queryRelatedRecords?objectIds=2&relationshipId=2&returnGeometry=true&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">With Geometry</a>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">📍</div>
+                            <h3>Points of Interest</h3>
+                        </div>
+                        <p>Find points of interest related to locations</p>
+                        <div style="margin-bottom: 1rem;">
+                            <a href="/arcgis/rest/services/test_locations/FeatureServer/0/queryRelatedRecords?objectIds=1&relationshipId=3&f=json" class="btn" target="_blank">POI for Location 1</a>
+                            <a href="/arcgis/rest/services/test_locations/FeatureServer/0/queryRelatedRecords?objectIds=1&relationshipId=3&definitionExpression=poi_type='Historic'&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Historic POIs</a>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">🔍</div>
+                            <h3>Filtered Relationships</h3>
+                        </div>
+                        <p>Use definition expressions to filter related records</p>
+                        <div style="margin-bottom: 1rem;">
+                            <a href="/arcgis/rest/services/test_locations/FeatureServer/0/queryRelatedRecords?objectIds=1&relationshipId=0&definitionExpression=building_type='Commercial'&f=json" class="btn" target="_blank">Commercial Buildings</a>
+                            <a href="/arcgis/rest/services/test_locations/FeatureServer/0/queryRelatedRecords?objectIds=1&relationshipId=0&definitionExpression=floors>5&f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Tall Buildings</a>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">📊</div>
+                            <h3>Relationship Discovery</h3>
+                        </div>
+                        <p>Discover available relationships and their metadata</p>
+                        <div style="margin-bottom: 1rem;">
+                            <a href="/arcgis/rest/services/test_locations/FeatureServer/0?f=json" class="btn" target="_blank">Layer Relationships</a>
+                            <a href="/arcgis/rest/services/test_locations/FeatureServer?f=json" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Service Info</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card" style="margin-top: 1.5rem; background: #f0f9ff; border-color: #0ea5e9;">
+                    <div class="card-header">
+                        <div class="card-icon">💡</div>
+                        <h3>ArcGIS Client Integration</h3>
+                    </div>
+                    <p style="margin-bottom: 1rem;">These relationship queries work seamlessly with ArcGIS clients:</p>
+                    <ul style="margin-left: 1.5rem; margin-bottom: 1rem; color: #64748b;">
+                        <li>✅ <strong>ArcGIS Map Viewer</strong> - Use "Related Data" buttons in pop-ups</li>
+                        <li>✅ <strong>ArcGIS Pro</strong> - Right-click layers → "View Related Data"</li>
+                        <li>✅ <strong>ArcGIS Desktop</strong> - Relationship queries in attribute tables</li>
+                        <li>✅ <strong>ArcGIS Enterprise</strong> - Full relationship support</li>
+                    </ul>
+                    <p style="font-size: 0.875rem; color: #64748b;">Add your service URL to any ArcGIS client to automatically discover and use relationships!</p>
+                </div>
+            </div>
+            
+            <div class="section">
                 <h2>FeatureServer Test URLs</h2>
                 <div class="grid">
                     <div class="card">

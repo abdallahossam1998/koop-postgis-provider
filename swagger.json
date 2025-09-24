@@ -539,31 +539,34 @@
     "/arcgis/rest/services/{id}/FeatureServer/{layer}/queryRelatedRecords": {
       "get": {
         "summary": "Query related records",
-        "description": "Query records related to the specified features",
+        "description": "Query records related to the specified features through foreign key relationships. This endpoint automatically detects relationships between PostgreSQL tables based on foreign key constraints and returns related data in ArcGIS-compatible format.\n\n**Usage Examples:**\n- Get buildings for location ID 1: `?objectIds=1&relationshipId=0`\n- Get infrastructure for multiple locations: `?objectIds=1,2,3&relationshipId=1`\n- Get all related records with geometry: `?objectIds=1&relationshipId=0&returnGeometry=true&outFields=*`\n\n**Relationship Detection:**\nThe service automatically detects relationships based on foreign key constraints in your PostgreSQL database. Each relationship is assigned an ID (0, 1, 2, etc.) that you can use in the relationshipId parameter.",
         "tags": ["Relationships"],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
-            "description": "Table identifier",
+            "description": "Table identifier in format schema.table (e.g., 'test_locations')",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "example": "test_locations"
             }
           },
           {
             "name": "layer",
             "in": "path",
             "required": true,
-            "description": "Layer ID",
+            "description": "Layer ID (typically 0 for the main layer)",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "example": 0
             }
           },
           {
             "name": "objectIds",
             "in": "query",
-            "description": "Comma-separated list of object IDs",
+            "required": true,
+            "description": "Comma-separated list of object IDs to find related records for",
             "schema": {
               "type": "string",
               "example": "1,2,3"
@@ -572,15 +575,71 @@
           {
             "name": "relationshipId",
             "in": "query",
-            "description": "ID of the relationship to query",
+            "required": true,
+            "description": "ID of the relationship to query. Use the layer info endpoint to discover available relationships and their IDs.",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "example": 0
+            }
+          },
+          {
+            "name": "definitionExpression",
+            "in": "query",
+            "description": "SQL WHERE clause to filter related records",
+            "schema": {
+              "type": "string",
+              "example": "building_type = 'Commercial'"
+            }
+          },
+          {
+            "name": "outFields",
+            "in": "query",
+            "description": "Comma-separated list of fields to return (* for all fields)",
+            "schema": {
+              "type": "string",
+              "example": "*",
+              "default": "*"
+            }
+          },
+          {
+            "name": "returnGeometry",
+            "in": "query",
+            "description": "Whether to include geometry in the response (if related table has geometry)",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "f",
+            "in": "query",
+            "description": "Output format",
+            "schema": {
+              "type": "string",
+              "enum": ["json", "pjson"],
+              "default": "json"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Related records"
+            "description": "Related records grouped by source object ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelatedRecordsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required parameters or invalid relationship ID"
+          },
+          "404": {
+            "description": "Layer or relationship not found"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         }
       },
@@ -887,6 +946,71 @@
             }
           }
         }
+      },
+      "RelatedRecordsResponse": {
+        "type": "object",
+        "properties": {
+          "relatedRecordGroups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RelatedRecordGroup"
+            }
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Field"
+            }
+          }
+        },
+        "example": {
+          "relatedRecordGroups": [
+            {
+              "objectId": 1,
+              "relatedRecords": [
+                {
+                  "attributes": {
+                    "building_id": 1,
+                    "location_id": 1,
+                    "building_name": "Central Park Visitor Center",
+                    "building_type": "Public",
+                    "floors": 2,
+                    "area_sqm": "1200.50"
+                  },
+                  "geometry": null
+                }
+              ]
+            }
+          ],
+          "fields": [
+            {
+              "name": "building_id",
+              "type": "esriFieldTypeInteger",
+              "alias": "Building ID"
+            },
+            {
+              "name": "building_name",
+              "type": "esriFieldTypeString",
+              "alias": "Building Name"
+            }
+          ]
+        }
+      },
+      "RelatedRecordGroup": {
+        "type": "object",
+        "properties": {
+          "objectId": {
+            "type": "integer",
+            "description": "ID of the source object that these related records belong to",
+            "example": 1
+          },
+          "relatedRecords": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Feature"
+            }
+          }
+        }
       }
     }
   },
@@ -917,7 +1041,7 @@
     },
     {
       "name": "Relationships",
-      "description": "Query related records and relationship operations"
+      "description": "Query related records and relationship operations. Automatically detects foreign key relationships in PostgreSQL and provides ArcGIS-compatible relationship queries. Perfect for exploring related data like buildings at locations, infrastructure details, land use information, and points of interest."
     },
     {
       "name": "Vector Tiles",
