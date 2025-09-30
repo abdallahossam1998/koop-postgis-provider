@@ -103,9 +103,39 @@ class GeoServices {
       handler: 'queryRelatedRecordsHandler',
     },
     {
-      path: '$namespace/rest/services/$providerParams/MapServer*',
+      path: '$namespace/rest/services/$providerParams/MapServer',
       methods: ['get', 'post'],
-      handler: 'invalidUrlHandler',
+      handler: 'serverInfoHandler',
+    },
+    {
+      path: '$namespace/rest/services/$providerParams/MapServer/layers',
+      methods: ['get', 'post'],
+      handler: 'layersInfoHandler',
+    },
+    {
+      path: '$namespace/rest/services/$providerParams/MapServer/:layer',
+      methods: ['get', 'post'],
+      handler: 'layerInfoHandler',
+    },
+    {
+      path: '$namespace/rest/services/$providerParams/MapServer/:layer/info',
+      methods: ['get', 'post'],
+      handler: 'layerInfoHandler',
+    },
+    {
+      path: '$namespace/rest/services/$providerParams/MapServer/:layer/query',
+      methods: ['get', 'post'],
+      handler: 'queryHandler',
+    },
+    {
+      path: '$namespace/rest/services/$providerParams/MapServer/:layer/generateRenderer',
+      methods: ['get', 'post'],
+      handler: 'generateRendererHandler',
+    },
+    {
+      path: '$namespace/rest/services/$providerParams/MapServer/:layer/queryRelatedRecords',
+      methods: ['get', 'post'],
+      handler: 'queryRelatedRecordsHandler',
     },
   ];
 
