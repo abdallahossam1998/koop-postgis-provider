@@ -30,6 +30,17 @@ module.exports = [
     methods: ['get'],
     handler: 'mapServer'
   },
+  // Identify endpoints for ArcGIS Pro compatibility
+  {
+    path: '/:id/FeatureServer/identify',
+    methods: ['get', 'post'],
+    handler: 'identify'
+  },
+  {
+    path: '/:id/MapServer/identify',
+    methods: ['get', 'post'],
+    handler: 'identify'
+  },
   {
     path: '/:id',
     methods: ['get'],
