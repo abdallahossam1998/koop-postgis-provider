@@ -170,7 +170,7 @@ INSERT INTO test_points_of_interest (location_id, poi_name, poi_type, descriptio
 (3, 'Times Square Museum', 'Cultural', 'History of Times Square', 4.0),
 -- Brooklyn Bridge Park POIs
 (4, 'Brooklyn Bridge Promenade', 'Scenic', 'Walking path with city views', 4.9),
-(4, 'Jane\'s Carousel', 'Attraction', 'Historic merry-go-round', 4.5),
+(4, 'Jane''s Carousel', 'Attraction', 'Historic merry-go-round', 4.5),  -- FIXED: '' instead of \'
 -- High Line Park POIs
 (5, 'High Line Overlook', 'Scenic', 'Elevated city viewpoint', 4.7),
 (5, 'Chelsea Market Passage', 'Shopping', 'Connection to famous food market', 4.3)
