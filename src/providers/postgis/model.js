@@ -1084,7 +1084,8 @@ class Model {
         idField: this.findIdField(fields),
         maxRecordCount: maxRecordCount,
         fields,
-        relationships
+        relationships,
+        capabilities: 'Map,Query,Data,Identify,Relationship'
       }
     } finally {
       client.release()
