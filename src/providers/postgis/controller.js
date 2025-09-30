@@ -305,7 +305,7 @@ class Controller {
           TextAntialiasingMode: 'Force',
           Keywords: 'koop,postgis,postgresql'
         },
-        capabilities: 'Map,Query,Data,Relationship',
+        capabilities: 'Map,Query,Data,Relationship,Identify',
         supportedQueryFormats: 'JSON, geoJSON',
         supportedExportFormats: 'sqlite,filegdb,shapefile,csv,kml,kmz',
         hasVersionedData: false,
@@ -316,6 +316,45 @@ class Controller {
       }
 
       res.json(serviceInfo)
+    } catch (error) {
+      this.handleError(res, error)
+    }
+  }
+
+  /**
+   * Handle identify requests for ArcGIS Pro compatibility
+   */
+  async identify(req, res) {
+    try {
+      // For now, just return all features (simplified identify)
+      // TODO: Implement proper spatial identify logic
+      const modifiedReq = { ...req }
+      modifiedReq.query = {
+        where: '1=1',
+        resultRecordCount: 10, // Limit results for identify
+        f: 'json'
+      }
+      
+      // Use the same query handler but format for identify response
+      this.model.getData(modifiedReq, (error, geojson) => {
+        if (error) {
+          return this.handleError(res, error)
+        }
+
+        // Format as identify response
+        const identifyResults = {
+          results: geojson.features.map((feature, index) => ({
+            layerId: 0,
+            layerName: req.params.id,
+            value: feature.properties[geojson.metadata.idField] || index,
+            displayFieldName: geojson.metadata.displayField || Object.keys(feature.properties)[0],
+            attributes: feature.properties,
+            geometry: this.convertGeometryToEsri(feature.geometry)
+          }))
+        }
+
+        res.json(identifyResults)
+      })
     } catch (error) {
       this.handleError(res, error)
     }
@@ -515,6 +554,11 @@ class Controller {
       },
       hasAttachments: false,
       htmlPopupType: 'esriServerHTMLPopupTypeAsHTMLText',
+      supportsAdvancedQueries: true,
+      canModifyLayer: false,
+      enableZDefaults: false,
+      zDefault: 0,
+      allowGeometryUpdates: true,
       displayField: metadata.displayField || '',
       typeIdField: null,
       subtypeFieldName: null,
@@ -532,11 +576,14 @@ class Controller {
       canModifyLayer: false,
       canScaleSymbols: false,
       hasLabels: false,
-      capabilities: 'Map,Query,Data,Relationship',
+      capabilities: 'Map,Query,Data,Identify,Relationship',
       maxRecordCount: metadata.maxRecordCount || parseInt(process.env.KOOP_MAX_RECORD_COUNT) || 100000,
       supportsStatistics: true,
       supportsAdvancedQueries: true,
       supportedQueryFormats: 'JSON, geoJSON',
+      supportsValidateSql: false,
+      supportsCoordinatesQuantization: true,
+      supportsReturningQueryGeometry: true,
       isDataVersioned: false,
       ownershipBasedAccessControlForFeatures: {
         allowOthersToQuery: true
