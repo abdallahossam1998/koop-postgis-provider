@@ -254,7 +254,7 @@ class Controller {
    */
   async handleLayerInfo(req, res) {
     try {
-      this.model.getData(req, (error, geojson) => {
+      this.model.getData(req, async (error, geojson) => {
         if (error) {
           return this.handleError(res, error)
         }
@@ -262,7 +262,7 @@ class Controller {
         // Check if this is a service root request
         if (geojson.metadata && geojson.metadata.isServiceRoot) {
           console.log('Service root detected, generating service info from metadata')
-          return this.generateServiceInfoFromMetadata(req, res, geojson.metadata, 'FeatureServer')
+          return await this.generateServiceInfoFromMetadata(req, res, geojson.metadata, 'FeatureServer')
         }
 
         const layerInfo = this.generateLayerInfo(geojson.metadata, req.params)
@@ -306,6 +306,49 @@ class Controller {
       const nonSpatialTables = allTables.filter(t => t.isTable)
       
       console.log(`DIRECT: Found ${spatialLayers.length} spatial layers and ${nonSpatialTables.length} non-spatial tables`)
+      
+      // Get relationships for all tables
+      const allRelationships = []
+      let relationshipId = 0
+      
+      for (const table of allTables) {
+        const tableRelationships = await this.model.getTableRelationships(schemaName, table.tableName)
+        
+        // Convert to service-level relationship format
+        for (const rel of tableRelationships) {
+          // Find origin and destination layer IDs
+          const originLayerId = table.id
+          const destinationLayerId = rel.relatedTableId
+          
+          // Determine origin/destination based on role
+          const isOriginTable = rel.role === 'esriRelRoleOrigin'
+          
+          const serviceRelationship = {
+            id: relationshipId++,
+            name: rel.name,
+            backwardPathLabel: `${rel.relatedTableName}`,
+            originLayerId: isOriginTable ? originLayerId : destinationLayerId,
+            originPrimaryKey: isOriginTable ? rel.keyField : rel.destinationColumn,
+            forwardPathLabel: `${rel.relatedTableName}`,
+            destinationLayerId: isOriginTable ? destinationLayerId : originLayerId,
+            originForeignKey: isOriginTable ? rel.keyField : rel.originColumn,
+            destinationPrimaryKey: isOriginTable ? rel.destinationColumn : rel.keyField,
+            rules: [], // No rules defined for simple FK relationships
+            cardinality: rel.cardinality,
+            attributed: false, // Simple FK relationships are not attributed
+            composite: rel.composite || false
+          }
+          
+          allRelationships.push(serviceRelationship)
+        }
+      }
+      
+      // Remove duplicates based on relationship name
+      const uniqueRelationships = allRelationships.filter((rel, index, self) => 
+        index === self.findIndex(r => r.name === rel.name)
+      )
+      
+      console.log(`DIRECT: Found ${uniqueRelationships.length} unique relationships for service`)
       
       const serviceInfo = {
         currentVersion: 11.2,
@@ -360,8 +403,8 @@ class Controller {
           type: "Feature Layer",
           geometryType: layer.geometryType || "esriGeometryPoint"
         })),
-        relationships: [],
-        supportsRelationshipsResource: false
+        relationships: uniqueRelationships,
+        supportsRelationshipsResource: true
       }
 
       console.log('DIRECT: Generated service info with:', {
@@ -381,7 +424,7 @@ class Controller {
   /**
    * Generate service info from metadata (when tables are already loaded)
    */
-  generateServiceInfoFromMetadata(req, res, metadata, serviceType) {
+  async generateServiceInfoFromMetadata(req, res, metadata, serviceType) {
     try {
       const { id } = req.params
       const schemaName = id || 'public'
@@ -392,6 +435,58 @@ class Controller {
       // Separate spatial layers from non-spatial tables
       const spatialLayers = allTables.filter(t => !t.isTable)
       const nonSpatialTables = allTables.filter(t => t.isTable)
+      
+      // Get relationships for all tables
+      const allRelationships = []
+      let relationshipId = 0
+      
+      console.log(`METADATA: Starting relationship detection for ${allTables.length} tables`)
+      
+      for (const table of allTables) {
+        try {
+          console.log(`METADATA: Getting relationships for table: ${table.tableName}`)
+          const tableRelationships = await this.model.getTableRelationships(schemaName, table.tableName)
+          console.log(`METADATA: Found ${tableRelationships.length} relationships for ${table.tableName}`)
+          
+          // Convert to service-level relationship format
+          for (const rel of tableRelationships) {
+            console.log(`METADATA: Converting relationship: ${rel.name}`)
+            // Find origin and destination layer IDs
+            const originLayerId = table.id
+            const destinationLayerId = rel.relatedTableId
+            
+            // Determine origin/destination based on role
+            const isOriginTable = rel.role === 'esriRelRoleOrigin'
+            
+            const serviceRelationship = {
+              id: relationshipId++,
+              name: rel.name,
+              backwardPathLabel: `${rel.relatedTableName}`,
+              originLayerId: isOriginTable ? originLayerId : destinationLayerId,
+              originPrimaryKey: isOriginTable ? rel.keyField : rel.destinationColumn,
+              forwardPathLabel: `${rel.relatedTableName}`,
+              destinationLayerId: isOriginTable ? destinationLayerId : originLayerId,
+              originForeignKey: isOriginTable ? rel.keyField : rel.originColumn,
+              destinationPrimaryKey: isOriginTable ? rel.destinationColumn : rel.keyField,
+              rules: [], // No rules defined for simple FK relationships
+              cardinality: rel.cardinality,
+              attributed: false, // Simple FK relationships are not attributed
+              composite: rel.composite || false
+            }
+            
+            allRelationships.push(serviceRelationship)
+          }
+        } catch (error) {
+          console.error(`METADATA: Error getting relationships for ${table.tableName}:`, error.message)
+        }
+      }
+      
+      // Remove duplicates based on relationship name
+      const uniqueRelationships = allRelationships.filter((rel, index, self) => 
+        index === self.findIndex(r => r.name === rel.name)
+      )
+      
+      console.log(`METADATA: Found ${uniqueRelationships.length} unique relationships for service`)
       
       const serviceInfo = {
         currentVersion: 11.2,
@@ -468,8 +563,8 @@ class Controller {
         maxImageHeight: 4096,
         maxImageWidth: 4096,
         supportedExtensions: '',
-        relationships: [],
-        supportsRelationshipsResource: spatialLayers.length > 0
+        relationships: uniqueRelationships,
+        supportsRelationshipsResource: true
       }
 
       console.log('Generated service info:', {
@@ -518,7 +613,59 @@ class Controller {
       const nonSpatialTables = allTables.filter(t => t.isTable)
       
       console.log('Spatial layers:', spatialLayers)
-      console.log('Non-spatial tables:', nonSpatialTables)
+      console.log(`DIRECT: Found ${spatialLayers.length} spatial layers and ${nonSpatialTables.length} non-spatial tables`)
+      
+      // Get relationships for all tables
+      const allRelationships = []
+      let relationshipId = 0
+      
+      console.log(`DIRECT: Starting relationship detection for ${allTables.length} tables`)
+      
+      for (const table of allTables) {
+        try {
+          console.log(`DIRECT: Getting relationships for table: ${table.tableName}`)
+          const tableRelationships = await this.model.getTableRelationships(schemaName, table.tableName)
+          console.log(`DIRECT: Found ${tableRelationships.length} relationships for ${table.tableName}`)
+          
+          // Convert to service-level relationship format
+          for (const rel of tableRelationships) {
+            console.log(`DIRECT: Converting relationship: ${rel.name}`)
+            // Find origin and destination layer IDs
+            const originLayerId = table.id
+            const destinationLayerId = rel.relatedTableId
+            
+            // Determine origin/destination based on role
+            const isOriginTable = rel.role === 'esriRelRoleOrigin'
+            
+            const serviceRelationship = {
+              id: relationshipId++,
+              name: rel.name,
+              backwardPathLabel: `${rel.relatedTableName}`,
+              originLayerId: isOriginTable ? originLayerId : destinationLayerId,
+              originPrimaryKey: isOriginTable ? rel.keyField : rel.destinationColumn,
+              forwardPathLabel: `${rel.relatedTableName}`,
+              destinationLayerId: isOriginTable ? destinationLayerId : originLayerId,
+              originForeignKey: isOriginTable ? rel.keyField : rel.originColumn,
+              destinationPrimaryKey: isOriginTable ? rel.destinationColumn : rel.keyField,
+              rules: [], // No rules defined for simple FK relationships
+              cardinality: rel.cardinality,
+              attributed: false, // Simple FK relationships are not attributed
+              composite: rel.composite || false
+            }
+            
+            allRelationships.push(serviceRelationship)
+          }
+        } catch (error) {
+          console.error(`DIRECT: Error getting relationships for ${table.tableName}:`, error.message)
+        }
+      }
+      
+      // Remove duplicates based on relationship name
+      const uniqueRelationships = allRelationships.filter((rel, index, self) => 
+        index === self.findIndex(r => r.name === rel.name)
+      )
+      
+      console.log(`Found ${uniqueRelationships.length} unique relationships for service`)
       
       const serviceInfo = {
         currentVersion: 11.2,
@@ -588,7 +735,9 @@ class Controller {
         maxRecordCount: parseInt(process.env.KOOP_MAX_RECORD_COUNT) || 100000,
         maxImageHeight: 4096,
         maxImageWidth: 4096,
-        supportedExtensions: ''
+        supportedExtensions: '',
+        relationships: uniqueRelationships,
+        supportsRelationshipsResource: true
       }
 
       res.json(serviceInfo)
@@ -911,6 +1060,72 @@ class Controller {
     }
     
     return layerInfo
+  }
+
+  /**
+   * Handle service-level relationships endpoint
+   * GET /schema/FeatureServer/relationships
+   */
+  async handleServiceRelationships(req, res) {
+    try {
+      const { id } = req.params
+      const schema = id || 'public'
+      
+      console.log('Service relationships request:', { schema, url: req.url })
+      
+      // Get all tables in the schema
+      const allTables = await this.model.getAllTablesInSchema(schema)
+      
+      // Get relationships for all tables
+      const allRelationships = []
+      let relationshipId = 0
+      
+      for (const table of allTables) {
+        const tableRelationships = await this.model.getTableRelationships(schema, table.tableName)
+        
+        // Convert to service-level relationship format
+        for (const rel of tableRelationships) {
+          // Find origin and destination layer IDs
+          const originLayerId = table.id
+          const destinationLayerId = rel.relatedTableId
+          
+          // Determine origin/destination based on role
+          const isOriginTable = rel.role === 'esriRelRoleOrigin'
+          
+          const serviceRelationship = {
+            id: relationshipId++,
+            name: rel.name,
+            backwardPathLabel: `${rel.relatedTableName}`,
+            originLayerId: isOriginTable ? originLayerId : destinationLayerId,
+            originPrimaryKey: isOriginTable ? rel.keyField : rel.destinationColumn,
+            forwardPathLabel: `${rel.relatedTableName}`,
+            destinationLayerId: isOriginTable ? destinationLayerId : originLayerId,
+            originForeignKey: isOriginTable ? rel.keyField : rel.originColumn,
+            destinationPrimaryKey: isOriginTable ? rel.destinationColumn : rel.keyField,
+            rules: [], // No rules defined for simple FK relationships
+            cardinality: rel.cardinality,
+            attributed: false, // Simple FK relationships are not attributed
+            composite: rel.composite || false
+          }
+          
+          allRelationships.push(serviceRelationship)
+        }
+      }
+      
+      // Remove duplicates based on relationship name
+      const uniqueRelationships = allRelationships.filter((rel, index, self) => 
+        index === self.findIndex(r => r.name === rel.name)
+      )
+      
+      const response = {
+        relationships: uniqueRelationships
+      }
+      
+      res.json(response)
+    } catch (error) {
+      console.error('Error in handleServiceRelationships:', error)
+      this.handleError(res, error)
+    }
   }
 
   /**
