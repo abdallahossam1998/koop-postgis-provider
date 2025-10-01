@@ -11,6 +11,9 @@
     "esri",
     "gis"
   ],
-  "author": "Abdallah Hossam",
+  "author": {
+    "name": "Abdallah Hossam",
+    "email": "abdallahossam1998@gmail.com"
+  },
   "license": "MIT"
 }
