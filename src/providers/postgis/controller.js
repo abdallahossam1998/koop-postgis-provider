@@ -12,6 +12,14 @@ class Controller {
     try {
       const { layer, method } = req.params
       
+      console.log('FeatureServer request:', { layer, method, url: req.url, params: req.params })
+      
+      // Check if this is a service-level request (no layer specified)
+      if ((!layer || layer === '') && (!method || method === '')) {
+        console.log('Handling service info request - CUSTOM CONTROLLER')
+        return this.handleServiceInfo(req, res, 'FeatureServer')
+      }
+      
       // Handle different FeatureServer methods
       switch (method) {
         case 'query':
@@ -20,15 +28,15 @@ class Controller {
           return this.handleQueryRelatedRecords(req, res)
         case 'queryrelated':
           return this.handleQueryRelatedRecords(req, res)
+        case 'getEstimates':
+          return this.handleGetEstimates(req, res)
         case 'info':
           return this.handleLayerInfo(req, res)
         default:
           if (!method && layer) {
-            // URL pattern: /id/FeatureServer/0 - show layer info
+            // URL pattern: /schema/FeatureServer/0 - show layer info
+            console.log('Handling layer info request for layer:', layer)
             return this.handleLayerInfo(req, res)
-          } else if (!method && !layer) {
-            // URL pattern: /id/FeatureServer - show service info
-            return this.handleServiceInfo(req, res, 'FeatureServer')
           } else {
             // Unknown method, return 404
             return res.status(404).json({ error: 'Method not found', method: method })
@@ -220,6 +228,28 @@ class Controller {
   }
 
   /**
+   * Handle getEstimates requests (NEW for multi-layer support)
+   */
+  async handleGetEstimates(req, res) {
+    try {
+      const { schema, layer } = req.params
+      
+      // Get table info from layer ID
+      const layerInfo = await this.model.getTableByLayerId(schema || 'public', layer)
+      if (!layerInfo) {
+        return res.status(404).json({ error: `Layer ${layer} not found` })
+      }
+      
+      // Get estimates from model
+      const estimates = await this.model.getLayerEstimates(schema || 'public', layerInfo.tableName, layerInfo.geometryColumn)
+      
+      res.json(estimates)
+    } catch (error) {
+      this.handleError(res, error)
+    }
+  }
+
+  /**
    * Handle layer info requests
    */
   async handleLayerInfo(req, res) {
@@ -227,6 +257,12 @@ class Controller {
       this.model.getData(req, (error, geojson) => {
         if (error) {
           return this.handleError(res, error)
+        }
+
+        // Check if this is a service root request
+        if (geojson.metadata && geojson.metadata.isServiceRoot) {
+          console.log('Service root detected, generating service info from metadata')
+          return this.generateServiceInfoFromMetadata(req, res, geojson.metadata, 'FeatureServer')
         }
 
         const layerInfo = this.generateLayerInfo(geojson.metadata, req.params)
@@ -238,34 +274,274 @@ class Controller {
   }
 
   /**
-   * Handle service info requests
+   * Handle service root requests directly (bypasses Koop's built-in FeatureServer)
+   */
+  async handleServiceRoot(req, res) {
+    try {
+      const { id } = req.params
+      const schemaName = id || 'public'
+      
+      console.log(`DIRECT SERVICE ROOT REQUEST for schema: ${schemaName}`)
+      
+      // Get database configuration and initialize pool
+      const config = this.model.getDatabaseConfig('default')
+      await this.model.initializePool(config)
+      
+      // Get all tables in the schema
+      const allTables = await this.model.getAllTablesInSchema(schemaName)
+      console.log('DIRECT: Found tables for service:', allTables.length)
+      
+      if (allTables.length === 0) {
+        return res.status(404).json({
+          error: {
+            code: 404,
+            message: `No tables found in schema '${schemaName}'. Please check that the schema exists and contains tables.`,
+            details: [`Schema: ${schemaName}`, `Available schemas can be checked via database administration tools`]
+          }
+        })
+      }
+      
+      // Separate spatial layers from non-spatial tables
+      const spatialLayers = allTables.filter(t => !t.isTable)
+      const nonSpatialTables = allTables.filter(t => t.isTable)
+      
+      console.log(`DIRECT: Found ${spatialLayers.length} spatial layers and ${nonSpatialTables.length} non-spatial tables`)
+      
+      const serviceInfo = {
+        currentVersion: 11.2,
+        serviceDescription: `Multi-layer service for schema ${schemaName}`,
+        hasVersionedData: false,
+        supportsDisconnectedEditing: false,
+        hasStaticData: false,
+        hasSharedDomains: false,
+        maxRecordCount: parseInt(process.env.KOOP_MAX_RECORD_COUNT) || 50000,
+        supportedQueryFormats: "JSON",
+        supportsVCSProjection: false,
+        supportedExportFormats: "",
+        capabilities: "Query",
+        description: `Multi-layer service for schema ${schemaName}`,
+        copyrightText: "Copyright information varies by provider. For more information please contact the source of this data.",
+        spatialReference: {"wkid": 4326, "latestWkid": 4326},
+        fullExtent: {"xmin": -180, "ymin": -90, "xmax": 180, "ymax": 90, "spatialReference": {"wkid": 4326, "latestWkid": 4326}},
+        initialExtent: {"xmin": -180, "ymin": -90, "xmax": 180, "ymax": 90, "spatialReference": {"wkid": 4326, "latestWkid": 4326}},
+        allowGeometryUpdates: false,
+        units: "esriDecimalDegrees",
+        supportsAppend: false,
+        supportsSharedDomains: false,
+        supportsWebHooks: false,
+        supportsTemporalLayers: false,
+        layerOverridesEnabled: false,
+        syncEnabled: false,
+        supportsApplyEditsWithGlobalIds: false,
+        supportsReturnDeleteResults: false,
+        supportsLayerOverrides: false,
+        supportsTilesAndBasicQueriesMode: true,
+        supportsQueryContingentValues: false,
+        supportedContingentValuesFormats: "",
+        supportsContingentValuesJson: null,
+        tables: nonSpatialTables.map(table => ({
+          id: table.id,
+          name: table.name,
+          type: "Table",
+          parentLayerId: -1,
+          defaultVisibility: true,
+          subLayerIds: null,
+          minScale: 0,
+          maxScale: 0
+        })),
+        layers: spatialLayers.map(layer => ({
+          id: layer.id,
+          name: layer.name,
+          parentLayerId: -1,
+          defaultVisibility: true,
+          subLayerIds: null,
+          minScale: 0,
+          maxScale: 0,
+          type: "Feature Layer",
+          geometryType: layer.geometryType || "esriGeometryPoint"
+        })),
+        relationships: [],
+        supportsRelationshipsResource: false
+      }
+
+      console.log('DIRECT: Generated service info with:', {
+        layers: serviceInfo.layers.length,
+        tables: serviceInfo.tables.length,
+        layerNames: serviceInfo.layers.map(l => l.name),
+        tableNames: serviceInfo.tables.map(t => t.name)
+      })
+
+      res.json(serviceInfo)
+    } catch (error) {
+      console.error('Error in handleServiceRoot:', error)
+      this.handleError(res, error)
+    }
+  }
+
+  /**
+   * Generate service info from metadata (when tables are already loaded)
+   */
+  generateServiceInfoFromMetadata(req, res, metadata, serviceType) {
+    try {
+      const { id } = req.params
+      const schemaName = id || 'public'
+      const allTables = metadata.tables || []
+      
+      console.log('Generating service info from metadata:', { schemaName, tableCount: allTables.length })
+      
+      // Separate spatial layers from non-spatial tables
+      const spatialLayers = allTables.filter(t => !t.isTable)
+      const nonSpatialTables = allTables.filter(t => t.isTable)
+      
+      const serviceInfo = {
+        currentVersion: 11.2,
+        serviceDescription: `PostgreSQL/PostGIS ${serviceType} for schema: ${schemaName}`,
+        mapName: schemaName,
+        description: `Multi-layer ${serviceType} exposing all tables in schema ${schemaName}`,
+        copyrightText: 'PostgreSQL/PostGIS Provider',
+        supportsDynamicLayers: false,
+        layers: spatialLayers.map(layer => ({
+          id: layer.id,
+          name: layer.name,
+          parentLayerId: -1,
+          defaultVisibility: true,
+          subLayerIds: null,
+          minScale: 0,
+          maxScale: 0,
+          type: 'Feature Layer',
+          geometryType: layer.geometryType || 'esriGeometryPoint'
+        })),
+        tables: nonSpatialTables.map(table => ({
+          id: table.id,
+          name: table.name,
+          type: 'Table',
+          parentLayerId: -1,
+          defaultVisibility: true,
+          subLayerIds: null,
+          minScale: 0,
+          maxScale: 0
+        })),
+        spatialReference: {
+          wkid: 4326,
+          latestWkid: 4326
+        },
+        singleFusedMapCache: false,
+        initialExtent: {
+          xmin: -180,
+          ymin: -90,
+          xmax: 180,
+          ymax: 90,
+          spatialReference: {
+            wkid: 4326,
+            latestWkid: 4326
+          }
+        },
+        fullExtent: {
+          xmin: -180,
+          ymin: -90,
+          xmax: 180,
+          ymax: 90,
+          spatialReference: {
+            wkid: 4326,
+            latestWkid: 4326
+          }
+        },
+        minScale: 0,
+        maxScale: 0,
+        units: 'esriDecimalDegrees',
+        supportedImageFormatTypes: 'PNG32,PNG24,PNG,JPG,DIB,TIFF,EMF,PS,PDF,GIF,SVG,SVGZ,BMP',
+        documentInfo: {
+          Title: `${serviceType} for ${schemaName}`,
+          Author: 'Koop PostgreSQL/PostGIS Provider',
+          Comments: 'Generated by Koop',
+          Subject: `PostgreSQL/PostGIS ${serviceType}`,
+          Category: '',
+          AntialiasingMode: 'None',
+          TextAntialiasingMode: 'Force',
+          Keywords: 'koop,postgis,postgresql'
+        },
+        capabilities: 'Map,Query,Data,Relationship,Identify',
+        supportedQueryFormats: 'JSON, geoJSON',
+        supportedExportFormats: 'sqlite,filegdb,shapefile,csv,kml,kmz',
+        hasVersionedData: false,
+        maxRecordCount: parseInt(process.env.KOOP_MAX_RECORD_COUNT) || 100000,
+        maxImageHeight: 4096,
+        maxImageWidth: 4096,
+        supportedExtensions: '',
+        relationships: [],
+        supportsRelationshipsResource: spatialLayers.length > 0
+      }
+
+      console.log('Generated service info:', {
+        layers: serviceInfo.layers.length,
+        tables: serviceInfo.tables.length,
+        layerNames: serviceInfo.layers.map(l => l.name),
+        tableNames: serviceInfo.tables.map(t => t.name)
+      })
+
+      res.json(serviceInfo)
+    } catch (error) {
+      this.handleError(res, error)
+    }
+  }
+
+  /**
+   * Handle service info requests (UPDATED for multi-layer support)
    */
   async handleServiceInfo(req, res, serviceType) {
     try {
-      const { id } = req.params
+      const { schema, id } = req.params
+      // Support both :schema and :id parameters
+      const schemaName = schema || (id && !id.includes('.') ? id : 'public')
       const host = 'default' // Always use default host
       
-      const serviceInfo = {
-        currentVersion: 10.91,
-        serviceDescription: `PostgreSQL/PostGIS ${serviceType} for ${id}`,
-        mapName: id,
-        description: `PostgreSQL/PostGIS layer: ${id}`,
-        copyrightText: '',
-        supportsDynamicLayers: false,
-        layers: [
-          {
-            id: 0,
-            name: id,
-            parentLayerId: -1,
-            defaultVisibility: true,
-            subLayerIds: null,
-            minScale: 0,
-            maxScale: 0,
-            type: 'Feature Layer',
-            geometryType: 'esriGeometryPoint'
+      // Get database configuration and initialize pool
+      const config = this.model.getDatabaseConfig(host)
+      await this.model.initializePool(config)
+      
+      // Get all tables in the schema
+      const allTables = await this.model.getAllTablesInSchema(schemaName)
+      console.log('getAllTablesInSchema result:', allTables)
+      
+      if (allTables.length === 0) {
+        return res.status(404).json({
+          error: {
+            code: 404,
+            message: `No tables found in schema '${schemaName}'. Please check that the schema exists and contains tables.`,
+            details: [`Schema: ${schemaName}`, `Available schemas can be checked via database administration tools`]
           }
-        ],
-        tables: [],
+        })
+      }
+      
+      // Separate spatial layers from non-spatial tables
+      const spatialLayers = allTables.filter(t => !t.isTable)
+      const nonSpatialTables = allTables.filter(t => t.isTable)
+      
+      console.log('Spatial layers:', spatialLayers)
+      console.log('Non-spatial tables:', nonSpatialTables)
+      
+      const serviceInfo = {
+        currentVersion: 11.2,
+        serviceDescription: `PostgreSQL/PostGIS ${serviceType} for schema: ${schemaName}`,
+        mapName: schemaName,
+        description: `Multi-layer ${serviceType} exposing all tables in schema ${schemaName}`,
+        copyrightText: 'PostgreSQL/PostGIS Provider',
+        supportsDynamicLayers: false,
+        layers: spatialLayers.map(layer => ({
+          id: layer.id,
+          name: layer.name,
+          parentLayerId: -1,
+          defaultVisibility: true,
+          subLayerIds: null,
+          minScale: 0,
+          maxScale: 0,
+          type: 'Feature Layer',
+          geometryType: layer.geometryType || 'esriGeometryPoint'
+        })),
+        tables: nonSpatialTables.map(table => ({
+          id: table.id,
+          name: table.name
+        })),
         spatialReference: {
           wkid: 4326,
           latestWkid: 4326
@@ -344,8 +620,8 @@ class Controller {
         // Format as identify response
         const identifyResults = {
           results: geojson.features.map((feature, index) => ({
-            layerId: 0,
-            layerName: req.params.id,
+            layerId: parseInt(req.params.layer) || 0,
+            layerName: req.params.schema || 'public',
             value: feature.properties[geojson.metadata.idField] || index,
             displayFieldName: geojson.metadata.displayField || Object.keys(feature.properties)[0],
             attributes: feature.properties,
@@ -528,7 +804,7 @@ class Controller {
     
     const layerInfo = {
       id: parseInt(params.layer) || 0,
-      name: metadata.name || params.id,
+      name: metadata.name || params.schema,
       type: isNonSpatial ? 'Table' : 'Feature Layer',
       description: metadata.description || '',
       geometryType: isNonSpatial ? null : this.mapGeometryTypeToEsri(metadata.geometryType),
