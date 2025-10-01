@@ -50,13 +50,26 @@ class Model {
         // Use database connection string from environment variables
         const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/postgres';
         
-        // Create pool with connection string only
-        this.pool = new Pool({ connectionString });
+        // Create pool with connection string and timeout settings
+        this.pool = new Pool({ 
+          connectionString,
+          connectionTimeoutMillis: 10000, // 10 second connection timeout
+          idleTimeoutMillis: 30000,       // 30 second idle timeout
+          query_timeout: 30000,           // 30 second query timeout
+          // max: 10                         // Maximum 10 connections
+        });
         
         // Set up error handler for the pool
         this.pool.on('error', (err) => {
           console.error('PostgreSQL pool error:', err);
         });
+        
+        // Test the connection
+        const client = await this.pool.connect();
+        await client.query('SELECT 1');
+        client.release();
+        console.log('Database connection successful');
+        
       } catch (error) {
         console.error('Failed to create connection pool:', error);
         throw new Error(`Failed to create connection pool: ${error.message}`);
@@ -181,7 +194,7 @@ class Model {
             supportsQueryContingentValues: false,
             supportedContingentValuesFormats: "",
             supportsContingentValuesJson: null,
-            supportsRelationshipsResource: false
+            supportsRelationshipsResource: true
           }
         }
         return callback(null, serviceGeojson)
@@ -294,7 +307,16 @@ class Model {
         ORDER BY t.table_name
       `
       
-      const result = await client.query(query, [schema])
+      console.log('Getting tables in schema:', schema)
+      
+      // Set a query timeout for schema discovery
+      const queryPromise = client.query(query, [schema])
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Schema query timeout after 15 seconds')), 15000)
+      )
+      
+      const result = await Promise.race([queryPromise, timeoutPromise])
+      console.log(`Found ${result.rows.length} tables in schema '${schema}'`)
       
       if (result.rows.length === 0) {
         return []
@@ -434,10 +456,20 @@ class Model {
     const result4 = this.applyPagination(query, queryParams, params, paramIndex)
     query = result4.query
 
-    // Execute query
+    // Execute query with timeout
     const client = await this.pool.connect()
     try {
-      const result = await client.query(query, params)
+      console.log('Executing query:', query.substring(0, 200) + '...')
+      console.log('Query parameters:', params)
+      
+      // Set a query timeout of 30 seconds
+      const queryPromise = client.query(query, params)
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Query timeout after 30 seconds')), 30000)
+      )
+      
+      const result = await Promise.race([queryPromise, timeoutPromise])
+      console.log(`Query completed successfully, returned ${result.rows.length} rows`)
       
       // Format results based on table type
       if (isNonSpatial) {
@@ -445,6 +477,9 @@ class Model {
       } else {
         return await this.formatAsGeoJSON(result.rows, queryParams, schema, table)
       }
+    } catch (error) {
+      console.error('Query execution error:', error.message)
+      throw error
     } finally {
       client.release()
     }
@@ -720,13 +755,42 @@ class Model {
 
     const client = await this.pool.connect()
     try {
+      // Enhanced query to get relationship info with cardinality detection
       const query = `
         SELECT DISTINCT
           tc.constraint_name,
           tc.table_name as origin_table,
           kcu.column_name as origin_column,
           ccu.table_name as destination_table,
-          ccu.column_name as destination_column
+          ccu.column_name as destination_column,
+          -- Check if origin column is unique (determines cardinality)
+          CASE 
+            WHEN EXISTS (
+              SELECT 1 FROM information_schema.table_constraints tc2
+              JOIN information_schema.key_column_usage kcu2 
+                ON tc2.constraint_name = kcu2.constraint_name
+                AND tc2.table_schema = kcu2.table_schema
+              WHERE tc2.constraint_type IN ('UNIQUE', 'PRIMARY KEY')
+                AND tc2.table_schema = tc.table_schema
+                AND tc2.table_name = tc.table_name
+                AND kcu2.column_name = kcu.column_name
+            ) THEN true
+            ELSE false
+          END as origin_column_is_unique,
+          -- Check if destination column is unique
+          CASE 
+            WHEN EXISTS (
+              SELECT 1 FROM information_schema.table_constraints tc3
+              JOIN information_schema.key_column_usage kcu3 
+                ON tc3.constraint_name = kcu3.constraint_name
+                AND tc3.table_schema = kcu3.table_schema
+              WHERE tc3.constraint_type IN ('UNIQUE', 'PRIMARY KEY')
+                AND tc3.table_schema = ccu.table_schema
+                AND tc3.table_name = ccu.table_name
+                AND kcu3.column_name = ccu.column_name
+            ) THEN true
+            ELSE false
+          END as destination_column_is_unique
         FROM information_schema.table_constraints tc
         JOIN information_schema.key_column_usage kcu 
           ON tc.constraint_name = kcu.constraint_name
@@ -742,6 +806,14 @@ class Model {
       
       const result = await client.query(query, [schema, tableName])
       
+      // Log relationship detection for debugging
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Relationship detection for ${schema}.${tableName}:`)
+        result.rows.forEach(row => {
+          console.log(`  ${row.constraint_name}: ${row.origin_table}.${row.origin_column} (unique: ${row.origin_column_is_unique}) → ${row.destination_table}.${row.destination_column} (unique: ${row.destination_column_is_unique})`)
+        })
+      }
+      
       // Map relationships with proper layer IDs
       const relationships = await Promise.all(result.rows.map(async (row, index) => {
         const isOrigin = row.origin_table === tableName
@@ -750,39 +822,67 @@ class Model {
         // Get the actual layer ID for the related table
         const relatedLayerId = await this.getLayerIdByTableName(schema, relatedTableName)
         
-        // For ArcGIS Pro compatibility, we need to expose the relationship from the perspective
-        // of the current table. When this table is the destination (Many-to-One), we flip it
-        // to appear as Origin (One-to-Many) so it shows in Layer Properties → Relationships tab
+        // Determine cardinality based on PostgreSQL constraints
         let cardinality, role, keyField
         
         if (isOrigin) {
-          // This table has FK pointing to another table (Many-to-One from this perspective)
-          // But we expose it as One-to-Many so it appears in ArcGIS Pro
-          cardinality = 'esriRelCardinalityOneToMany'
+          // This table has FK pointing to another table
           role = 'esriRelRoleOrigin'
           keyField = row.origin_column
+          
+          // Determine cardinality based on uniqueness constraints
+          if (row.origin_column_is_unique && row.destination_column_is_unique) {
+            // Both sides unique = One-to-One
+            cardinality = 'esriRelCardinalityOneToOne'
+          } else if (row.origin_column_is_unique) {
+            // Origin unique, destination not = One-to-Many (from this table's perspective)
+            cardinality = 'esriRelCardinalityOneToMany'
+          } else {
+            // Origin not unique = Many-to-One (most common case)
+            cardinality = 'esriRelCardinalityManyToOne'
+          }
         } else {
-          // Another table has FK pointing to this table (One-to-Many from this perspective)
-          // We expose it as One-to-Many with this table as origin
-          cardinality = 'esriRelCardinalityOneToMany'
-          role = 'esriRelRoleOrigin'
+          // Another table has FK pointing to this table
+          role = 'esriRelRoleDestination'
           keyField = row.destination_column
+          
+          // Determine cardinality from the destination perspective
+          if (row.origin_column_is_unique && row.destination_column_is_unique) {
+            // Both sides unique = One-to-One
+            cardinality = 'esriRelCardinalityOneToOne'
+          } else if (row.origin_column_is_unique) {
+            // Origin unique = One-to-One from destination perspective
+            cardinality = 'esriRelCardinalityOneToOne'
+          } else {
+            // Origin not unique = One-to-Many (this table is the "one" side)
+            cardinality = 'esriRelCardinalityOneToMany'
+          }
         }
         
+        // Create descriptive relationship name
+        const relationshipName = `${tableName}_to_${relatedTableName}`
+        
         return {
-          id: index,
-          name: row.constraint_name,
+          id: index, // Simple sequential ID
+          name: relationshipName,
           relatedTableId: relatedLayerId !== null ? relatedLayerId : this.generateTableId(relatedTableName),
           cardinality: cardinality,
           role: role,
           keyField: keyField,
-          composite: false,
+          composite: false, // Simple FK relationships are not composite
+          // Official ArcGIS relationship properties - use table names for labels
+          backwardPathLabel: relatedTableName,
+          forwardPathLabel: tableName,
+          attributed: false, // Simple FK relationships are not attributed
+          rules: [], // No rules for simple FK relationships
           // Add additional metadata for better Esri compatibility
           relatedTableName: relatedTableName,
           originTable: row.origin_table,
           destinationTable: row.destination_table,
           originColumn: row.origin_column,
-          destinationColumn: row.destination_column
+          destinationColumn: row.destination_column,
+          // Keep original constraint name for reference
+          constraintName: row.constraint_name
         }
       }))
       
