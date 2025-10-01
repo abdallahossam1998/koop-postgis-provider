@@ -73,8 +73,10 @@ class Model {
   async getData(request, callback) {
     try {
       const { params, query } = request
-      const { id, layer, method } = params
+      const { schema, id, layer, method } = params
       
+      // Determine the schema name - could be from :schema or :id parameter
+      const schemaName = schema || (id && !id.includes('.') ? id : 'public')
       
       // Check if this is a queryRelatedRecords request
       const isQueryRelatedRecords = method === 'queryRelatedRecords' || 
@@ -91,18 +93,114 @@ class Model {
       const config = this.getDatabaseConfig(host)
       await this.initializePool(config)
 
-      // Parse table and layer information
-      const tableInfo = await this.parseTableInfo(request.params.id, request.params.layer)
+      // NEW: Handle multi-layer service - get table name from layer ID
+      let tableInfo
+      if (layer !== undefined && layer !== null && layer !== '') {
+        // Layer ID provided - look up table name
+        const layerInfo = await this.getTableByLayerId(schemaName, layer)
+        if (!layerInfo) {
+          return callback(new Error(`Layer ${layer} not found in schema ${schemaName}`))
+        }
+        
+        tableInfo = {
+          schema: schemaName,
+          table: layerInfo.tableName,
+          geometryColumn: layerInfo.geometryColumn,
+          isNonSpatial: !layerInfo.geometryColumn
+        }
+      } else if (id && id.includes('.')) {
+        // OLD: Backward compatibility - schema.table format
+        tableInfo = await this.parseTableInfo(id, layer)
+      } else {
+        // Service-level request without layer ID - get all tables in schema
+        const allTables = await this.getAllTablesInSchema(schemaName)
+        
+        if (allTables.length === 0) {
+          return callback(new Error(`No tables found in schema '${schemaName}'. Please check that the schema exists and contains tables.`))
+        }
+        
+        // Return service info in the format Koop's FeatureServer expects
+        // Separate spatial layers from non-spatial tables
+        const spatialLayers = allTables.filter(t => !t.isTable)
+        const nonSpatialTables = allTables.filter(t => t.isTable)
+        
+        // Return data in the format Koop's serverInfo expects
+        // The serverInfo function expects layers and tables at the top level
+        const serviceGeojson = {
+          type: 'FeatureCollection',
+          features: [],
+          // TOP-LEVEL arrays that serverInfo will use
+          layers: spatialLayers.map(layer => ({
+            type: 'FeatureCollection',
+            features: [],
+            metadata: {
+              id: layer.id,
+              name: layer.name,
+              geometryType: layer.geometryType || 'esriGeometryPoint'
+            }
+          })),
+          tables: nonSpatialTables.map(table => ({
+            type: 'FeatureCollection', 
+            features: [],
+            metadata: {
+              id: table.id,
+              name: table.name
+            }
+          })),
+          relationships: [],
+          // Service metadata
+          metadata: {
+            name: schemaName,
+            description: `Multi-layer service for schema ${schemaName}`,
+            serviceDescription: `Multi-layer service for schema ${schemaName}`,
+            currentVersion: 11.2,
+            hasVersionedData: false,
+            supportsDisconnectedEditing: false,
+            hasStaticData: false,
+            hasSharedDomains: false,
+            maxRecordCount: parseInt(process.env.KOOP_MAX_RECORD_COUNT) || 50000,
+            supportedQueryFormats: "JSON",
+            supportsVCSProjection: false,
+            supportedExportFormats: "",
+            capabilities: "Query",
+            copyrightText: "Copyright information varies by provider. For more information please contact the source of this data.",
+            spatialReference: {"wkid": 4326, "latestWkid": 4326},
+            extent: {"xmin": -180, "ymin": -90, "xmax": 180, "ymax": 90},
+            allowGeometryUpdates: false,
+            units: "esriDecimalDegrees",
+            supportsAppend: false,
+            supportsSharedDomains: false,
+            supportsWebHooks: false,
+            supportsTemporalLayers: false,
+            layerOverridesEnabled: false,
+            syncEnabled: false,
+            supportsApplyEditsWithGlobalIds: false,
+            supportsReturnDeleteResults: false,
+            supportsLayerOverrides: false,
+            supportsTilesAndBasicQueriesMode: true,
+            supportsQueryContingentValues: false,
+            supportedContingentValuesFormats: "",
+            supportsContingentValuesJson: null,
+            supportsRelationshipsResource: false
+          }
+        }
+        return callback(null, serviceGeojson)
+      }
       
       // Build and execute query
       const geojson = await this.executeQuery(tableInfo, query, config)
       
-      // Add metadata
+      // Add metadata with layer ID information
       geojson.metadata = await this.generateMetadata(tableInfo, config)
       
+      // Add layer ID to metadata if available
+      if (layer !== undefined) {
+        geojson.metadata.layerId = parseInt(layer)
+      }
       
       callback(null, geojson)
     } catch (error) {
+      console.error('Error in getData:', error)
       callback(error)
     }
   }
@@ -165,6 +263,114 @@ class Model {
     }
 
     return { schema, table, geometryColumn, isNonSpatial }
+  }
+
+  /**
+   * Get all tables in a schema and assign layer IDs
+   * Returns array of {id, name, tableName, geometryType, isTable}
+   */
+  async getAllTablesInSchema(schema) {
+    if (!this.pool) {
+      return []
+    }
+
+    const client = await this.pool.connect()
+    try {
+      // Get all tables with their geometry info
+      const query = `
+        SELECT 
+          t.table_name,
+          c.column_name as geom_column,
+          c.udt_name as geom_type,
+          t.table_schema
+        FROM information_schema.tables t
+        LEFT JOIN information_schema.columns c 
+          ON t.table_name = c.table_name 
+          AND t.table_schema = c.table_schema
+          AND c.udt_name = 'geometry'
+        WHERE t.table_schema = $1
+          AND t.table_type = 'BASE TABLE'
+          AND t.table_name NOT IN ('spatial_ref_sys', 'geography_columns', 'geometry_columns', 'raster_columns', 'raster_overviews')
+        ORDER BY t.table_name
+      `
+      
+      const result = await client.query(query, [schema])
+      
+      if (result.rows.length === 0) {
+        return []
+      }
+      
+      // Group by table name and assign layer IDs
+      const tables = {}
+      result.rows.forEach(row => {
+        if (!tables[row.table_name]) {
+          tables[row.table_name] = {
+            tableName: row.table_name,
+            geometryColumn: row.geom_column,
+            geometryType: row.geom_type,
+            isSpatial: !!row.geom_column
+          }
+        }
+      })
+      
+      // Convert to array and assign sequential IDs
+      // Spatial layers first, then non-spatial tables
+      const spatialLayers = Object.values(tables).filter(t => t.isSpatial)
+      const nonSpatialTables = Object.values(tables).filter(t => !t.isSpatial)
+      
+      const allLayers = [...spatialLayers, ...nonSpatialTables].map((table, index) => ({
+        id: index,
+        name: table.tableName,
+        tableName: table.tableName,
+        geometryColumn: table.geometryColumn,
+        geometryType: table.isSpatial ? this.mapPostGISGeometryType(table.geometryType) : null,
+        isTable: !table.isSpatial // Non-spatial = table, spatial = layer
+      }))
+      
+      return allLayers
+    } catch (error) {
+      console.error('Error getting tables in schema:', error)
+      return []
+    } finally {
+      client.release()
+    }
+  }
+
+  /**
+   * Get table info by layer ID
+   */
+  async getTableByLayerId(schema, layerId) {
+    const tables = await this.getAllTablesInSchema(schema)
+    const table = tables.find(t => t.id === parseInt(layerId))
+    
+    if (!table) {
+      return null
+    }
+    return table
+  }
+
+  /**
+   * Get layer ID by table name
+   */
+  async getLayerIdByTableName(schema, tableName) {
+    const tables = await this.getAllTablesInSchema(schema)
+    const table = tables.find(t => t.tableName === tableName)
+    return table ? table.id : null
+  }
+
+  /**
+   * Map PostGIS geometry type to Esri geometry type
+   */
+  mapPostGISGeometryType(postgisType) {
+    const typeMap = {
+      'point': 'esriGeometryPoint',
+      'multipoint': 'esriGeometryMultipoint',
+      'linestring': 'esriGeometryPolyline',
+      'multilinestring': 'esriGeometryPolyline',
+      'polygon': 'esriGeometryPolygon',
+      'multipolygon': 'esriGeometryPolygon'
+    }
+    return typeMap[postgisType?.toLowerCase()] || 'esriGeometryPoint'
   }
 
   /**
@@ -536,20 +742,40 @@ class Model {
       
       const result = await client.query(query, [schema, tableName])
       
-      const relationships = result.rows.map((row, index) => {
+      // Map relationships with proper layer IDs
+      const relationships = await Promise.all(result.rows.map(async (row, index) => {
         const isOrigin = row.origin_table === tableName
         const relatedTableName = isOrigin ? row.destination_table : row.origin_table
         
-        // Generate a numeric ID for the related table based on table name hash
-        const relatedTableId = this.generateTableId(relatedTableName)
+        // Get the actual layer ID for the related table
+        const relatedLayerId = await this.getLayerIdByTableName(schema, relatedTableName)
+        
+        // For ArcGIS Pro compatibility, we need to expose the relationship from the perspective
+        // of the current table. When this table is the destination (Many-to-One), we flip it
+        // to appear as Origin (One-to-Many) so it shows in Layer Properties → Relationships tab
+        let cardinality, role, keyField
+        
+        if (isOrigin) {
+          // This table has FK pointing to another table (Many-to-One from this perspective)
+          // But we expose it as One-to-Many so it appears in ArcGIS Pro
+          cardinality = 'esriRelCardinalityOneToMany'
+          role = 'esriRelRoleOrigin'
+          keyField = row.origin_column
+        } else {
+          // Another table has FK pointing to this table (One-to-Many from this perspective)
+          // We expose it as One-to-Many with this table as origin
+          cardinality = 'esriRelCardinalityOneToMany'
+          role = 'esriRelRoleOrigin'
+          keyField = row.destination_column
+        }
         
         return {
           id: index,
           name: row.constraint_name,
-          relatedTableId: relatedTableId,
-          cardinality: isOrigin ? 'esriRelCardinalityOneToMany' : 'esriRelCardinalityManyToOne',
-          role: isOrigin ? 'esriRelRoleOrigin' : 'esriRelRoleDestination',
-          keyField: isOrigin ? row.origin_column : row.destination_column,
+          relatedTableId: relatedLayerId !== null ? relatedLayerId : this.generateTableId(relatedTableName),
+          cardinality: cardinality,
+          role: role,
+          keyField: keyField,
           composite: false,
           // Add additional metadata for better Esri compatibility
           relatedTableName: relatedTableName,
@@ -558,7 +784,7 @@ class Model {
           originColumn: row.origin_column,
           destinationColumn: row.destination_column
         }
-      })
+      }))
       
       return relationships
     } catch (error) {
@@ -569,11 +795,66 @@ class Model {
   }
 
   /**
+   * Get layer estimates (count and extent) for getEstimates endpoint
+   */
+  async getLayerEstimates(schema, tableName, geometryColumn) {
+    if (!this.pool) {
+      throw new Error('Database pool not initialized')
+    }
+
+    const client = await this.pool.connect()
+    try {
+      const result = { count: 0 }
+      
+      // Get count
+      const countQuery = `SELECT COUNT(*) as count FROM ${schema}.${tableName}`
+      const countResult = await client.query(countQuery)
+      result.count = parseInt(countResult.rows[0].count)
+      
+      // Get extent if spatial layer
+      if (geometryColumn) {
+        const extentQuery = `
+          SELECT 
+            ST_XMin(ST_Extent(${geometryColumn})) as xmin,
+            ST_YMin(ST_Extent(${geometryColumn})) as ymin,
+            ST_XMax(ST_Extent(${geometryColumn})) as xmax,
+            ST_YMax(ST_Extent(${geometryColumn})) as ymax,
+            ST_SRID(${geometryColumn}) as srid
+          FROM ${schema}.${tableName}
+          WHERE ${geometryColumn} IS NOT NULL
+        `
+        const extentResult = await client.query(extentQuery)
+        
+        if (extentResult.rows[0] && extentResult.rows[0].xmin !== null) {
+          const row = extentResult.rows[0]
+          result.extent = {
+            xmin: parseFloat(row.xmin),
+            ymin: parseFloat(row.ymin),
+            xmax: parseFloat(row.xmax),
+            ymax: parseFloat(row.ymax),
+            spatialReference: {
+              wkid: parseInt(row.srid) || 4326,
+              latestWkid: parseInt(row.srid) || 4326
+            }
+          }
+        }
+      }
+      
+      return result
+    } catch (error) {
+      console.error('Error getting layer estimates:', error)
+      throw error
+    } finally {
+      client.release()
+    }
+  }
+
+  /**
    * Get main layer data without recursion
    */
   async getMainLayerData(request) {
     const { params, query } = request
-    const { id, layer } = params
+    const { schema, layer } = params
     
     // Always use default host since we removed host parameter from URLs
     const host = 'default'
@@ -582,8 +863,24 @@ class Model {
     const config = this.getDatabaseConfig(host)
     await this.initializePool(config)
 
-    // Parse table and layer information
-    const tableInfo = await this.parseTableInfo(id, layer)
+    // Get table info from layer ID
+    let tableInfo
+    if (layer !== undefined && layer !== null) {
+      const layerInfo = await this.getTableByLayerId(schema || 'public', layer)
+      if (!layerInfo) {
+        throw new Error(`Layer ${layer} not found in schema ${schema || 'public'}`)
+      }
+      
+      tableInfo = {
+        schema: schema || 'public',
+        table: layerInfo.tableName,
+        geometryColumn: layerInfo.geometryColumn,
+        isNonSpatial: !layerInfo.geometryColumn
+      }
+    } else {
+      // No layer ID provided - this shouldn't happen in the new architecture
+      throw new Error('Layer ID is required for getMainLayerData')
+    }
     
     // Build and execute query
     const geojson = await this.executeQuery(tableInfo, query, config)
@@ -604,7 +901,6 @@ class Model {
       const { params, query } = request
       const { objectIds, relationshipId } = query
       
-      
       // Get the main layer metadata directly without calling getData to avoid recursion
       const mainGeojson = await this.getMainLayerData(request)
       
@@ -624,7 +920,6 @@ class Model {
         return callback(new Error(`Relationship ${cleanRelationshipId} not found`))
       }
       
-      
       // Get object IDs to query
       let targetObjectIds = []
       if (objectIds) {
@@ -632,10 +927,9 @@ class Model {
       } else {
         // Get first few object IDs from main layer
         const mainFeatures = mainGeojson.features || []
-        const idField = mainGeojson.metadata.idField || 'location_id'
-        targetObjectIds = mainFeatures.slice(0, 3).map(f => f.properties[idField])
+        const idField = mainGeojson.metadata.idField || 'OBJECTID'
+        targetObjectIds = mainFeatures.slice(0, 3).map(f => f.properties[idField]).filter(id => id != null)
       }
-      
       
       // Query actual related records from database
       const relatedRecordsResult = await this.queryRelatedRecords({
@@ -648,12 +942,15 @@ class Model {
         returnGeometry: query.returnGeometry === 'true'
       })
       
+      // Get field definitions from the related table
+      const relatedTableFields = await this.getTableFields(relationship.relatedTableName)
       
       // Convert to Koop's expected format: FeatureCollection with features array containing FeatureCollections
+      // Each feature is a FeatureCollection representing related records for one parent object
       const relatedFeatureCollections = relatedRecordsResult.map(group => ({
         type: 'FeatureCollection',
         properties: {
-          objectid: group.objectId // Note: lowercase 'objectid' as expected by Koop
+          objectid: group.objectId // Note: lowercase 'objectid' as required by Koop
         },
         features: group.relatedRecords.map(record => ({
           type: 'Feature',
@@ -667,21 +964,18 @@ class Model {
         type: 'FeatureCollection',
         features: relatedFeatureCollections,
         metadata: {
-          name: `${mainGeojson.metadata.name}_related`,
+          name: `${relationship.relatedTableName}`,
           description: `Related records for ${relationship.relatedTableName}`,
-          geometryType: null, // Related tables are typically non-spatial
-          fields: [
-            { name: 'id', type: 'Integer', alias: 'ID' },
-            { name: relationship.keyField || 'location_id', type: 'Integer', alias: 'Location ID' },
-            { name: 'name', type: 'String', alias: 'Name' },
-            { name: 'description', type: 'String', alias: 'Description' }
-          ]
+          geometryType: null, // Will be set if related table has geometry
+          fields: relatedTableFields,
+          idField: 'OBJECTID' // Standard Esri ID field
         }
       }
       
       callback(null, specialGeojson)
       
     } catch (error) {
+      console.error('Error in getRelatedRecordsData:', error)
       callback(error)
     }
   }
@@ -955,6 +1249,129 @@ class Model {
   }
 
   /**
+   * Get field definitions for a specific table from database schema
+   */
+  async getTableFields(tableName) {
+    if (!this.pool || !tableName) {
+      return []
+    }
+
+    const client = await this.pool.connect()
+    try {
+      const query = `
+        SELECT 
+          column_name,
+          data_type,
+          is_nullable,
+          character_maximum_length,
+          numeric_precision,
+          numeric_scale
+        FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = $1
+        ORDER BY ordinal_position
+      `
+      
+      const result = await client.query(query, [tableName])
+      
+      const fields = result.rows.map(row => {
+        let fieldType = 'esriFieldTypeString'
+        let length = row.character_maximum_length || 255
+        
+        // Map PostgreSQL types to Esri field types
+        switch (row.data_type) {
+          case 'integer':
+          case 'int':
+          case 'int4':
+            fieldType = 'esriFieldTypeInteger'
+            length = null
+            break
+          case 'bigint':
+          case 'int8':
+            fieldType = 'esriFieldTypeBigInteger'
+            length = null
+            break
+          case 'smallint':
+          case 'int2':
+            fieldType = 'esriFieldTypeSmallInteger'
+            length = null
+            break
+          case 'double precision':
+          case 'float8':
+          case 'real':
+          case 'float4':
+          case 'numeric':
+          case 'decimal':
+            fieldType = 'esriFieldTypeDouble'
+            length = null
+            break
+          case 'boolean':
+            fieldType = 'esriFieldTypeSmallInteger'
+            length = null
+            break
+          case 'date':
+          case 'timestamp':
+          case 'timestamp without time zone':
+          case 'timestamp with time zone':
+          case 'time':
+          case 'time without time zone':
+          case 'time with time zone':
+            fieldType = 'esriFieldTypeDate'
+            length = 8
+            break
+          case 'uuid':
+            fieldType = 'esriFieldTypeGUID'
+            length = 38
+            break
+          case 'text':
+          case 'character varying':
+          case 'varchar':
+          case 'character':
+          case 'char':
+            fieldType = 'esriFieldTypeString'
+            break
+          case 'USER-DEFINED': // Could be geometry or other custom type
+            if (row.column_name === 'geom' || row.column_name === 'geometry') {
+              return null // Skip geometry columns
+            }
+            fieldType = 'esriFieldTypeString'
+            break
+          default:
+            fieldType = 'esriFieldTypeString'
+        }
+        
+        // Special handling for OBJECTID field
+        if (row.column_name.toUpperCase() === 'OBJECTID' || row.column_name === 'id') {
+          fieldType = 'esriFieldTypeOID'
+        }
+        
+        // Special handling for GlobalID field
+        if (row.column_name.toUpperCase() === 'GLOBALID') {
+          fieldType = 'esriFieldTypeGlobalID'
+        }
+        
+        return {
+          name: row.column_name,
+          type: fieldType,
+          alias: row.column_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          sqlType: 'sqlTypeOther',
+          length: length,
+          nullable: row.is_nullable === 'YES',
+          editable: row.column_name.toUpperCase() !== 'OBJECTID' && row.column_name.toUpperCase() !== 'GLOBALID',
+          domain: null,
+          defaultValue: null
+        }
+      }).filter(field => field !== null) // Remove null entries (geometry columns)
+      
+      return fields
+    } catch (error) {
+      console.error('Error getting table fields:', error)
+      return []
+    } finally {
+      client.release()
+    }
+  }
+
+  /**
    * Format properties for Esri compatibility
    */
   formatProperties(properties) {
@@ -1076,8 +1493,8 @@ class Model {
       const maxRecordCount = parseInt(process.env.KOOP_MAX_RECORD_COUNT) || 10000
       
       return {
-        name: `${schema}.${table}`,
-        description: `PostgreSQL/PostGIS layer: ${schema}.${table}`,
+        name: table, // Just the table name without schema prefix
+        description: `PostgreSQL/PostGIS layer: ${table}`,
         extent,
         displayField: this.findDisplayField(fields),
         geometryType,
