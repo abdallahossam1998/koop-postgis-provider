@@ -1,5 +1,6 @@
 module.exports = [
-  // Simplified routes without host parameter
+  // Multi-layer FeatureServer routes (schema-based)
+  // These routes will be prefixed with /arcgis/rest/services by Koop
   {
     path: '/:id/FeatureServer/:layer/:method',
     methods: ['get', 'post'],
@@ -10,11 +11,13 @@ module.exports = [
     methods: ['get'],
     handler: 'featureServer'
   },
+  // PRIORITY ROUTE: Handle service-level requests directly
   {
     path: '/:id/FeatureServer',
     methods: ['get'],
-    handler: 'featureServer'
+    handler: 'handleServiceRoot'
   },
+  // Multi-layer MapServer routes (schema-based)
   {
     path: '/:id/MapServer/:layer/:method',
     methods: ['get', 'post'],
